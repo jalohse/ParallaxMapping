@@ -14,6 +14,7 @@
 #define fov_degrees 45.0f
 #define flip_degree 135.1f
 #define y_trans -7
+
 std::vector<cyPoint3f> plane_vertices = {
 	cyPoint3f(-20.5f, -20.5f, 0.0f),
 	cyPoint3f(20.5f, -20.5f, 0.0f),
@@ -22,6 +23,16 @@ std::vector<cyPoint3f> plane_vertices = {
 	cyPoint3f(20.5f, -20.5f, 0.0f),
 	cyPoint3f(20.5f, 20.5f, 0.0f)
 };
+
+std::vector<cyPoint3f> planeTextureVertices = {
+	cyPoint3f(0, 0, 0),
+	cyPoint3f(1, 0, 0),
+	cyPoint3f(0, 1, 0),
+	cyPoint3f(0, 1, 0),
+	cyPoint3f(1, 0, 0),
+	cyPoint3f(1, 1, 0)
+};
+
 cy::Matrix4<float> totalPlaneRotationMatrix = cyMatrix4f::MatrixIdentity();
 cyPoint3f lightVector = cyPoint3f(18, 60, 20);
 
@@ -342,6 +353,22 @@ void createObj(char* fileName) {
 	glBindVertexArray(0);
 }
 
+std::vector<cyPoint3f> calculateTangentsOfPlane()
+{
+	cyPoint3f edge1 = plane_vertices.at(1) - plane_vertices.at(0);
+	cyPoint3f edge2 = plane_vertices.at(2) - plane_vertices.at(0);
+	cyPoint3f tex_change1 = planeTextureVertices.at(1) - planeTextureVertices.at(0);
+	cyPoint3f tex_change2 = planeTextureVertices.at(2) - planeTextureVertices.at(0);
+	float determinant_tri1 = 1.0f / (tex_change1.x * tex_change2.y - tex_change2.x * tex_change1.y);
+	cyPoint3f tangent_tri1 = cyPoint3f(determinant_tri1 * (tex_change2.y * edge1.x - tex_change1.y * edge2.x),
+		determinant_tri1 * (tex_change2.y * edge1.y - tex_change1.y * edge2.y),
+		determinant_tri1 * (tex_change2.y * edge1.z - tex_change1.y * edge2.z));
+	tangent_tri1 = tangent_tri1.GetNormalized();
+
+	return std::vector<cyPoint3f>{tangent_tri1, tangent_tri1, tangent_tri1, tangent_tri1, tangent_tri1, tangent_tri1};
+
+}
+
 void createPlane() {
 	planeTransformationMatrix = cyMatrix4f::MatrixTrans(cyPoint3f(0, 0, 0));
 	planeCameraTransformationMatrix = planeTransformationMatrix * cyMatrix4f::MatrixRotationX(80);
@@ -359,17 +386,33 @@ void createPlane() {
 	plane_shaders.SetUniform(4, view);
 
 
-	GLuint planeVertexBufferObj[2];
+	GLuint planeVertexBufferObj[1];
+	GLuint planeTextureBufferObj[1];
+	GLuint planeTangentBufferObj[1];
 
 	glGenVertexArrays(1, &planeVertexArrayObj);
 	glBindVertexArray(planeVertexArrayObj);
 
 	glGenBuffers(1, planeVertexBufferObj);
-
 	glBindBuffer(GL_ARRAY_BUFFER, planeVertexBufferObj[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * plane_vertices.size(), &plane_vertices[0], GL_STATIC_DRAW);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+
+	glGenBuffers(1, planeTextureBufferObj);
+	glBindBuffer(GL_ARRAY_BUFFER, planeTextureBufferObj[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * planeTextureVertices.size(), &planeTextureVertices[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	std::vector<cyPoint3f> tangents = calculateTangentsOfPlane();
+
+	glGenBuffers(1, planeTangentBufferObj);
+	glBindBuffer(GL_ARRAY_BUFFER, planeTangentBufferObj[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * tangents.size(), &tangents[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
 
 	glBindVertexArray(0);
 }

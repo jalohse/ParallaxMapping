@@ -34,7 +34,8 @@ std::vector<cyPoint3f> planeTextureVertices = {
 };
 
 cy::Matrix4<float> totalPlaneRotationMatrix = cyMatrix4f::MatrixIdentity();
-cyPoint3f lightVector = cyPoint3f(18, 60, 20);
+cyPoint3f lightPos = cyPoint3f(18, 60, 20);
+cyPoint3f cameraPos = cyPoint3f(40, 110, 40);
 
 cyTriMesh mesh;
 
@@ -67,8 +68,8 @@ std::vector<cyPoint3f> lightVertices;
 cy::GLRenderDepth<GL_TEXTURE_2D> buffer;
 GLuint textureID[2];
 GLuint cubeTexId;
-cyMatrix4f view = cyMatrix4f::MatrixView(cyPoint3f(40, 110, 40), cyPoint3f(0, 0, 0), cyPoint3f(0, 1, 0));
-cyMatrix4f lightView = cyMatrix4f::MatrixView(lightVector, cyPoint3f(0, 0, 0), cyPoint3f(0, 1, 0));
+cyMatrix4f view = cyMatrix4f::MatrixView(cameraPos, cyPoint3f(0, 0, 0), cyPoint3f(0, 1, 0));
+cyMatrix4f lightView = cyMatrix4f::MatrixView(lightPos, cyPoint3f(0, 0, 0), cyPoint3f(0, 1, 0));
 cyMatrix4f lightProj = cyMatrix4f::MatrixPerspective(M_PI / 8, 1, 20, 200);
 cyMatrix4f bias = cyMatrix4f::MatrixTrans(cyPoint3f(0.5f, 0.5f, 0.495f)) * cyMatrix4f::MatrixScale(0.5f, 0.5f, 0.5f);
 cyMatrix4f teapotLightMVP;
@@ -167,27 +168,27 @@ void rotate() {
 
 
 void updateLightPosition() {
-	lightView = cyMatrix4f::MatrixView(lightVector, cyPoint3f(0, 0, 0), cyPoint3f(0, 1, 0));
+	lightView = cyMatrix4f::MatrixView(lightPos, cyPoint3f(0, 0, 0), cyPoint3f(0, 1, 0));
 	teapotLightMVP = lightProj * lightView * cameraTransformationMatrix;
 	planeLightMVP = lightProj * lightView * planeCameraTransformationMatrix;
 	depth_shaders.Bind();
 	depth_shaders.SetUniform(1, teapotLightMVP);
 	teapot_shaders.Bind();
 	teapot_shaders.SetUniform(6, bias * teapotLightMVP);
-	teapot_shaders.SetUniform(7, lightVector);
+	teapot_shaders.SetUniform(7, lightPos);
 	plane_shaders.Bind();
 	plane_shaders.SetUniform(3, bias * planeLightMVP);
-	lightTransformationMatrix = cyMatrix4f::MatrixTrans(lightVector);
+	lightTransformationMatrix = cyMatrix4f::MatrixTrans(lightPos);
 	lightCameraTransformationMatrix = lightTransformationMatrix * cyMatrix4f::MatrixRotationY(-10);
 }
 
 void moveLight() {
 	if (movement != 10) {
-		lightVector = cyPoint3f(lightVector.x + 2, lightVector.y, lightVector.z - 1);
+		lightPos = cyPoint3f(lightPos.x + 2, lightPos.y, lightPos.z - 1);
 		movement = movement + 1;
 	}
 	else {
-		lightVector = cyPoint3f(lightVector.x - 2, lightVector.y, lightVector.z + 1);
+		lightPos = cyPoint3f(lightPos.x - 2, lightPos.y, lightPos.z + 1);
 	}
 
 	updateLightPosition();
@@ -311,7 +312,7 @@ void createObj(char* fileName) {
 	teapot_shaders.RegisterUniform(6, "shadowMatrix");
 	teapot_shaders.SetUniform(6, bias * teapotLightMVP);
 	teapot_shaders.RegisterUniform(7, "lightPos");
-	teapot_shaders.SetUniform(7, lightVector);
+	teapot_shaders.SetUniform(7, lightPos);
 
 	GLuint vertexBufferObj[2];
 
@@ -384,6 +385,10 @@ void createPlane() {
 	plane_shaders.SetUniform(3, bias * planeLightMVP);
 	plane_shaders.RegisterUniform(4, "view");
 	plane_shaders.SetUniform(4, view);
+	plane_shaders.RegisterUniform(5, "lightPos");
+	plane_shaders.SetUniform(5, lightPos);
+	plane_shaders.RegisterUniform(6, "cameraPos");
+	plane_shaders.SetUniform(6, cameraPos);
 
 
 	GLuint planeVertexBufferObj[1];

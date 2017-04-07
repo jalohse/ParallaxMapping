@@ -6,6 +6,7 @@
 #include "cyTriMesh.h"
 #include "cyMatrix.h"
 #include "cyGL.h"
+#include "lodepng.h"
 
 
 #define width 300
@@ -68,6 +69,7 @@ std::vector<cyPoint3f> lightVertices;
 cy::GLRenderDepth<GL_TEXTURE_2D> buffer;
 GLuint textureID[2];
 GLuint cubeTexId;
+unsigned diffWidth, diffHeight, specHeight, specWidth;
 cyMatrix4f view = cyMatrix4f::MatrixView(cameraPos, cyPoint3f(0, 0, 0), cyPoint3f(0, 1, 0));
 cyMatrix4f lightView = cyMatrix4f::MatrixView(lightPos, cyPoint3f(0, 0, 0), cyPoint3f(0, 1, 0));
 cyMatrix4f lightProj = cyMatrix4f::MatrixPerspective(M_PI / 8, 1, 20, 200);
@@ -370,6 +372,56 @@ std::vector<cyPoint3f> calculateTangentsOfPlane()
 
 }
 
+std::vector<unsigned char> flipImage(int total, std::vector<unsigned char> imageVector) {
+	std::vector<unsigned char> image(total + 1);
+	for (int i = 0; i <= total; i += 4) {
+		char r = imageVector[total - i - 3];
+		char g = imageVector[total - i - 2];
+		char b = imageVector[total - i - 1];
+		char a = imageVector[total - i];
+		image[i] = r;
+		image[i + 1] = g;
+		image[i + 2] = b;
+		image[i + 3] = a;
+	}
+	return image;
+}
+
+std::vector<unsigned char> generateImage(std::string image) {
+	std::vector<unsigned char> diffuseVector;
+	int total;
+	if (diffWidth == 0) {
+		lodepng::decode(diffuseVector, diffWidth, diffHeight, image);
+		total = diffHeight * diffWidth * 4 - 1;
+	}
+	else {
+		lodepng::decode(diffuseVector, specWidth, specHeight, image);
+		total = specHeight * specWidth * 4 - 1;
+	}
+	return flipImage(total, diffuseVector);
+}
+
+void loadTextures() {
+	std::vector<unsigned char> diffuseImage = generateImage("brickwall.png");
+	std::vector<unsigned char> normalImage = generateImage("brickwall_normal.png");
+
+	GLuint textureID[2];
+	glGenTextures(2, textureID);
+
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, textureID[0]);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); //GL_NEAREST = no smoothing
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, 4, diffWidth, diffHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &diffuseImage[0]);
+
+	glBindTexture(GL_TEXTURE_2D, textureID[1]);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); //GL_NEAREST = no smoothing
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, 4, specWidth, specHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &normalImage[0]);
+
+}
+
+
 void createPlane() {
 	planeTransformationMatrix = cyMatrix4f::MatrixTrans(cyPoint3f(0, 0, 0));
 	planeCameraTransformationMatrix = planeTransformationMatrix * cyMatrix4f::MatrixRotationX(80);
@@ -390,6 +442,7 @@ void createPlane() {
 	plane_shaders.RegisterUniform(6, "cameraPos");
 	plane_shaders.SetUniform(6, cameraPos);
 
+	loadTextures();
 
 	GLuint planeVertexBufferObj[1];
 	GLuint planeTextureBufferObj[1];

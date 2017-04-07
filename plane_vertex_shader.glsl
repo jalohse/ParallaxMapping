@@ -5,7 +5,7 @@ layout(location = 1) in vec3 tex;
 layout(location = 2) in vec3 tangent;
 
 out mat3 tangentBitangentNormal;
-out vec4 texCoor;
+out vec2 texCoor;
 out vec3 tangentLightPos;
 out vec3 tangentViewPos;
 out vec3 tangentFragPos;
@@ -27,6 +27,6 @@ void main() {
 	tangentViewPos = tangentBitangentNormal * cameraPos;
 	tangentFragPos = tangentBitangentNormal * vec3(cameraTransformation * vec4(pos, 1));
 
-	//texCoor = tex;
-	texCoor = shadowMatrix * vec4(pos,1);
+	texCoor = tex.xy;
+	//texCoor = shadowMatrix * vec4(pos,1);
 }

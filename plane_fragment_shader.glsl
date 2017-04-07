@@ -1,12 +1,12 @@
 #version 330 core
 
 uniform sampler2DShadow tex;
-uniform sample2D diffuseMap;
-uniform sample2D normalMap;
+uniform sampler2D diffuseMap;
+uniform sampler2D normalMap;
 
 out vec4 color;
 
-in vec4 texCoor;
+in vec2 texCoor;
 in mat3 tangentBitangentNormal;
 in vec3 tangentLightPos;
 in vec3 tangentViewPos;
@@ -17,12 +17,12 @@ vec4 ambientColor = vec4(0.2, 0.2, 0.2, 1);
 void main() {
 	vec3 normal = texture(normalMap, texCoor).rgb;
 	normal = normalize(normal * 2 - 1);
-	color = texture(diffuseMap, texCoor).rgb;
-	vec3 ambient = 0.1 * color;
+	vec3 texColor = texture(diffuseMap, texCoor).rgb;
+	vec3 ambient = 0.1 * texColor;
 
 	vec3 lightDir = normalize(tangentLightPos - tangentFragPos);
 	float diff = max(dot(lightDir, normal), 0.0);
-	vec3 diffuse = diff * color;
+	vec3 diffuse = diff * texColor;
 
 	vec3 viewDir = normalize(tangentViewPos - tangentFragPos);
 	vec3 reflectDir = reflect(-lightDir, normal);
@@ -32,5 +32,5 @@ void main() {
 
 	color = vec4(ambient + diffuse + specular, 1.0f);
 
-	color = texture(tex, texCoor.xyz/texCoor.w) * ambientColor + ambientColor;
+	//color = texture(tex, texCoor.xyz/texCoor.w) * ambientColor + ambientColor;
 }

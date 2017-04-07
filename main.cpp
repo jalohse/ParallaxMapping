@@ -99,22 +99,14 @@ void setInitialRotationAndTranslation() {
 
 void display() {
 
-	buffer.Bind();
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	depth_shaders.Bind();
-	glBindVertexArray(depthVertexArrayObj);
-	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-	buffer.Unbind();
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	teapot_shaders.Bind();
-	buffer.BindTexture();
 	glBindVertexArray(vertexArrayObj);
 	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 
 	plane_shaders.Bind();
-	buffer.BindTexture();
 	glBindVertexArray(planeVertexArrayObj);
 	glDrawArrays(GL_TRIANGLES, 0, plane_vertices.size());
 
@@ -425,6 +417,7 @@ void loadTextures() {
 void createPlane() {
 	planeTransformationMatrix = cyMatrix4f::MatrixTrans(cyPoint3f(0, 0, 0));
 	planeCameraTransformationMatrix = planeTransformationMatrix * cyMatrix4f::MatrixRotationX(80);
+	cyPoint3f normal = plane_vertices.at(0).Cross(plane_vertices.at(1)).GetNormalized();
 
 	plane_shaders = cy::GLSLProgram();
 	plane_shaders.BuildFiles("plane_vertex_shader.glsl", "plane_fragment_shader.glsl");
@@ -433,8 +426,8 @@ void createPlane() {
 	plane_shaders.SetUniform(1, planeCameraTransformationMatrix);
 	plane_shaders.RegisterUniform(2, "perspective");
 	plane_shaders.SetUniform(2, perspectiveMatrix);
-	plane_shaders.RegisterUniform(3, "shadowMatrix");
-	plane_shaders.SetUniform(3, bias * planeLightMVP);
+	plane_shaders.RegisterUniform(3, "normal");
+	plane_shaders.SetUniform(3, normal);
 	plane_shaders.RegisterUniform(4, "view");
 	plane_shaders.SetUniform(4, view);
 	plane_shaders.RegisterUniform(5, "lightPos");

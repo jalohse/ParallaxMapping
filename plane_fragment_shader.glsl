@@ -1,6 +1,5 @@
 #version 330 core
 
-uniform sampler2DShadow tex;
 uniform sampler2D diffuseMap;
 uniform sampler2D normalMap;
 
@@ -17,6 +16,7 @@ vec4 ambientColor = vec4(0.2, 0.2, 0.2, 1);
 void main() {
 	vec3 normal = texture(normalMap, texCoor).rgb;
 	normal = normalize(normal * 2 - 1);
+
 	vec3 texColor = texture(diffuseMap, texCoor).rgb;
 	vec3 ambient = 0.1 * texColor;
 
@@ -32,5 +32,4 @@ void main() {
 
 	color = vec4(ambient + diffuse + specular, 1.0f);
 
-	//color = texture(tex, texCoor.xyz/texCoor.w) * ambientColor + ambientColor;
 }

@@ -12,21 +12,21 @@ out vec3 tangentFragPos;
 
 uniform mat4 cameraTransformation;
 uniform mat4 perspective;
-uniform mat4 shadowMatrix;
 uniform mat4 view;
 uniform vec3 lightPos;
 uniform vec3 cameraPos;
+uniform vec3 normal;
 
 void main() {
 	gl_Position = perspective * view * cameraTransformation * vec4(pos, 1);
 
 	vec3 tangent = normalize(vec3(cameraTransformation * vec4(tangent, 0.0)));
-	vec3 normal = normalize(vec3(cameraTransformation * vec4(0.0, 1.0, 0.0 , 0.0)));
-	tangentBitangentNormal = transpose(mat3(tangent, cross(tangent, normal), normal));
+	vec3 normal = normalize(vec3(cameraTransformation * vec4(normal, 0.0)));
+	tangent = normalize(tangent - dot(tangent, normal) * normal);
+	tangentBitangentNormal = transpose(mat3(tangent, cross(normal, tangent), normal));
 	tangentLightPos = tangentBitangentNormal * lightPos;
 	tangentViewPos = tangentBitangentNormal * cameraPos;
-	tangentFragPos = tangentBitangentNormal * vec3(cameraTransformation * vec4(pos, 1));
+	tangentFragPos = tangentBitangentNormal * vec3(cameraTransformation * vec4(pos, 0.0));
 
 	texCoor = tex.xy;
-	//texCoor = shadowMatrix * vec4(pos,1);
 }

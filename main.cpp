@@ -107,6 +107,12 @@ void display() {
 	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 
 	plane_shaders.Bind();
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, textureID[0]);
+	glUniform1i(glGetUniformLocation(plane_shaders.GetID(), "diffuseMap"), 0);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, textureID[1]);
+	glUniform1i(glGetUniformLocation(plane_shaders.GetID(), "normalMap"), 1);
 	glBindVertexArray(planeVertexArrayObj);
 	glDrawArrays(GL_TRIANGLES, 0, plane_vertices.size());
 
@@ -402,7 +408,6 @@ void loadTextures() {
 	std::vector<unsigned char> diffuseImage = generateImage("bricks2.png");
 	std::vector<unsigned char> normalImage = generateImage("bricks2_normal.png");
 
-	GLuint textureID[2];
 	glGenTextures(2, textureID);
 
 	glEnable(GL_TEXTURE_2D);
@@ -415,6 +420,8 @@ void loadTextures() {
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); //GL_NEAREST = no smoothing
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexImage2D(GL_TEXTURE_2D, 0, 4, specWidth, specHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &normalImage[0]);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
 
 }
 

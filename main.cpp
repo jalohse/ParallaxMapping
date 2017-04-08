@@ -67,7 +67,7 @@ std::vector<cyPoint3f> textureVertices;
 std::vector<cyPoint3f> normals;
 std::vector<cyPoint3f> lightVertices;
 cy::GLRenderDepth<GL_TEXTURE_2D> buffer;
-GLuint textureID[2];
+GLuint textureID[3];
 unsigned diffWidth, diffHeight, specHeight, specWidth;
 cyPoint3f upVec = cyPoint3f(0, 1, 0);
 cyMatrix4f view = cyMatrix4f::MatrixView(cameraPos, cyPoint3f(0, 0, 0), upVec);
@@ -113,6 +113,9 @@ void display() {
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, textureID[1]);
 	glUniform1i(glGetUniformLocation(plane_shaders.GetID(), "normalMap"), 1);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, textureID[2]);
+	glUniform1i(glGetUniformLocation(plane_shaders.GetID(), "depthMap"), 2);
 	glBindVertexArray(planeVertexArrayObj);
 	glDrawArrays(GL_TRIANGLES, 0, plane_vertices.size());
 
@@ -407,8 +410,9 @@ std::vector<unsigned char> generateImage(std::string image) {
 void loadTextures() {
 	std::vector<unsigned char> diffuseImage = generateImage("bricks2.png");
 	std::vector<unsigned char> normalImage = generateImage("bricks2_normal.png");
+	std::vector<unsigned char> displacementImage = generateImage("bricks2_disp.png");
 
-	glGenTextures(2, textureID);
+	glGenTextures(3, textureID);
 
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, textureID[0]);
@@ -420,6 +424,11 @@ void loadTextures() {
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); //GL_NEAREST = no smoothing
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexImage2D(GL_TEXTURE_2D, 0, 4, specWidth, specHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &normalImage[0]);
+
+	glBindTexture(GL_TEXTURE_2D, textureID[2]);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); //GL_NEAREST = no smoothing
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, 4, specWidth, specHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &displacementImage[0]);
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 

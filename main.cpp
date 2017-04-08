@@ -399,8 +399,8 @@ std::vector<unsigned char> generateImage(std::string image) {
 }
 
 void loadTextures() {
-	std::vector<unsigned char> diffuseImage = generateImage("brickwall.png");
-	std::vector<unsigned char> normalImage = generateImage("brickwall_normal.png");
+	std::vector<unsigned char> diffuseImage = generateImage("bricks2.png");
+	std::vector<unsigned char> normalImage = generateImage("bricks2_normal.png");
 
 	GLuint textureID[2];
 	glGenTextures(2, textureID);

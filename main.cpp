@@ -68,10 +68,10 @@ std::vector<cyPoint3f> normals;
 std::vector<cyPoint3f> lightVertices;
 cy::GLRenderDepth<GL_TEXTURE_2D> buffer;
 GLuint textureID[2];
-GLuint cubeTexId;
 unsigned diffWidth, diffHeight, specHeight, specWidth;
-cyMatrix4f view = cyMatrix4f::MatrixView(cameraPos, cyPoint3f(0, 0, 0), cyPoint3f(0, 1, 0));
-cyMatrix4f lightView = cyMatrix4f::MatrixView(lightPos, cyPoint3f(0, 0, 0), cyPoint3f(0, 1, 0));
+cyPoint3f upVec = cyPoint3f(0, 1, 0);
+cyMatrix4f view = cyMatrix4f::MatrixView(cameraPos, cyPoint3f(0, 0, 0), upVec);
+cyMatrix4f lightView = cyMatrix4f::MatrixView(lightPos, cyPoint3f(0, 0, 0), upVec);
 cyMatrix4f lightProj = cyMatrix4f::MatrixPerspective(M_PI / 8, 1, 20, 200);
 cyMatrix4f bias = cyMatrix4f::MatrixTrans(cyPoint3f(0.5f, 0.5f, 0.495f)) * cyMatrix4f::MatrixScale(0.5f, 0.5f, 0.5f);
 cyMatrix4f teapotLightMVP;
@@ -360,7 +360,12 @@ std::vector<cyPoint3f> calculateTangentsOfPlane()
 		determinant_tri1 * (tex_change2.y * edge1.z - tex_change1.y * edge2.z));
 	tangent_tri1 = tangent_tri1.GetNormalized();
 
-	return std::vector<cyPoint3f>{tangent_tri1, tangent_tri1, tangent_tri1, tangent_tri1, tangent_tri1, tangent_tri1};
+	cyPoint3f bitangent1 = cyPoint3f(determinant_tri1 * (-tex_change2.x * edge1.x + tex_change1.x * edge2.x),
+	determinant_tri1 * (-tex_change2.x * edge1.y + tex_change1.x * edge2.y),
+		determinant_tri1 * (-tex_change2.x * edge1.z + tex_change1.x * edge2.z));
+	bitangent1 = bitangent1.GetNormalized();
+
+	return std::vector<cyPoint3f>{tangent_tri1, bitangent1};
 
 }
 
@@ -440,6 +445,7 @@ void createPlane() {
 	GLuint planeVertexBufferObj[1];
 	GLuint planeTextureBufferObj[1];
 	GLuint planeTangentBufferObj[1];
+	GLuint planeBitangentBufferObj[1];
 
 	glGenVertexArrays(1, &planeVertexArrayObj);
 	glBindVertexArray(planeVertexArrayObj);
@@ -457,11 +463,23 @@ void createPlane() {
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
 
-	std::vector<cyPoint3f> tangents = calculateTangentsOfPlane();
+	std::vector<cyPoint3f> tangentsBitangents = calculateTangentsOfPlane();
+
+	cyPoint3f tangent = tangentsBitangents.at(0);
+	std::vector<cyPoint3f> tangents = { tangent, tangent, tangent, tangent, tangent, tangent };
 
 	glGenBuffers(1, planeTangentBufferObj);
 	glBindBuffer(GL_ARRAY_BUFFER, planeTangentBufferObj[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * tangents.size(), &tangents[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	cyPoint3f bitangent = tangentsBitangents.at(1);
+	std::vector<cyPoint3f> bitangents = { bitangent, bitangent, bitangent, bitangent, bitangent, bitangent };
+
+	glGenBuffers(1, planeBitangentBufferObj);
+	glBindBuffer(GL_ARRAY_BUFFER, planeBitangentBufferObj[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * tangents.size(), &bitangents[0], GL_STATIC_DRAW);
 	glEnableVertexAttribArray(2);
 	glVertexAttribPointer(2, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
 

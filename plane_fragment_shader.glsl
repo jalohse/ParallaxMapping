@@ -6,7 +6,6 @@ uniform sampler2D normalMap;
 out vec4 color;
 
 in vec2 texCoor;
-in mat3 tangentBitangentNormal;
 in vec3 tangentLightPos;
 in vec3 tangentViewPos;
 in vec3 tangentFragPos;

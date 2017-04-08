@@ -3,8 +3,8 @@
 layout(location = 0) in vec3 pos; 
 layout(location = 1) in vec3 tex;
 layout(location = 2) in vec3 tangent;
+layout(location = 2) in vec3 bitangent;
 
-out mat3 tangentBitangentNormal;
 out vec2 texCoor;
 out vec3 tangentLightPos;
 out vec3 tangentViewPos;
@@ -22,8 +22,8 @@ void main() {
 
 	vec3 tangent = normalize(vec3(cameraTransformation * vec4(tangent, 0.0)));
 	vec3 normal = normalize(vec3(cameraTransformation * vec4(normal, 0.0)));
-	tangent = normalize(tangent - dot(tangent, normal) * normal);
-	tangentBitangentNormal = transpose(mat3(tangent, cross(normal, tangent), normal));
+	vec3 bitangent = normalize(vec3(cameraTransformation * vec4(bitangent, 0.0)));
+	mat3 tangentBitangentNormal = transpose(mat3(tangent, bitangent, normal));
 	tangentLightPos = tangentBitangentNormal * lightPos;
 	tangentViewPos = tangentBitangentNormal * cameraPos;
 	tangentFragPos = tangentBitangentNormal * vec3(cameraTransformation * vec4(pos, 0.0));

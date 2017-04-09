@@ -12,17 +12,17 @@
 #define width 300
 #define far_plane 500.0f
 #define inital_z -70.0f
-#define fov_degrees 45.0f
+#define fov_degrees 90.0f
 #define flip_degree 135.1f
 #define y_trans -7
 
 std::vector<cyPoint3f> plane_vertices = {
-	cyPoint3f(-20.5f, -20.5f, 0.0f),
-	cyPoint3f(20.5f, -20.5f, 0.0f),
-	cyPoint3f(-20.5f, 20.5f, 0.0f),
-	cyPoint3f(-20.5f, 20.5f, 0.0f),
-	cyPoint3f(20.5f, -20.5f, 0.0f),
-	cyPoint3f(20.5f, 20.5f, 0.0f)
+	cyPoint3f(-1.5f, -1.5f, 0.0f),
+	cyPoint3f(1.5f, -1.5f, 0.0f),
+	cyPoint3f(-1.5f, 1.5f, 0.0f),
+	cyPoint3f(-1.5f, 1.5f, 0.0f),
+	cyPoint3f(1.5f, -1.5f, 0.0f),
+	cyPoint3f(1.5f, 1.5f, 0.0f)
 };
 
 std::vector<cyPoint3f> planeTextureVertices = {
@@ -36,7 +36,7 @@ std::vector<cyPoint3f> planeTextureVertices = {
 
 cy::Matrix4<float> totalPlaneRotationMatrix = cyMatrix4f::MatrixIdentity();
 cyPoint3f lightPos = cyPoint3f(18, 60, 20);
-cyPoint3f cameraPos = cyPoint3f(40, 110, 40);
+cyPoint3f cameraPos = cyPoint3f(0, 0, 5);
 
 cyTriMesh mesh;
 
@@ -48,6 +48,7 @@ GLuint depthVertexArrayObj;
 cy::GLSLProgram teapot_shaders;
 cy::GLSLProgram depth_shaders;
 cy::GLSLProgram plane_shaders;
+cy::GLSLProgram cube_shaders;
 
 cy::Matrix4<float> cameraTransformationMatrix;
 cy::Matrix4<float> planeCameraTransformationMatrix;
@@ -55,6 +56,7 @@ cy::Matrix4<float> lightCameraTransformationMatrix;
 cy::Matrix4<float> perspectiveMatrix;
 cy::Matrix4<float> totalRotationMatrix;
 cy::Matrix4<float> translationMatrix;
+cy::Matrix4<float> cubeTranslationMatrix;
 cy::Matrix4<float> planeTransformationMatrix;
 cy::Matrix4<float> lightTransformationMatrix;
 cy::Matrix4<float> lightRotationMatrix;
@@ -66,9 +68,15 @@ std::vector<cyPoint3f> vertices;
 std::vector<cyPoint3f> textureVertices;
 std::vector<cyPoint3f> normals;
 std::vector<cyPoint3f> lightVertices;
-cy::GLRenderDepth<GL_TEXTURE_2D> buffer;
+
+std::vector<cyPoint3f> cube_vertices;
+std::vector<cyPoint3f> cube_normals;
+std::vector<cyPoint3f> cube_texture_vertices;
+
 GLuint textureID[3];
+GLuint cubeTexId;
 unsigned diffWidth, diffHeight, specHeight, specWidth;
+unsigned cubeWidth, cubeHeight;
 cyPoint3f upVec = cyPoint3f(0, 1, 0);
 cyMatrix4f view = cyMatrix4f::MatrixView(cameraPos, cyPoint3f(0, 0, 0), upVec);
 cyMatrix4f lightView = cyMatrix4f::MatrixView(lightPos, cyPoint3f(0, 0, 0), upVec);
@@ -83,14 +91,14 @@ void setInitialRotationAndTranslation() {
 	cyPoint3f max = mesh.GetBoundMax();
 	cyPoint3f min = mesh.GetBoundMin();
 	cyPoint3f mid = max + min;
-	cy::Matrix4<float> rotationZ = cyMatrix4f::MatrixRotationZ(-10);
-	cy::Matrix4<float> rotationX = cyMatrix4f::MatrixRotationX(40.2);
-	cyPoint3f translation = cyPoint3f(0, 0, 0);
+	cy::Matrix4<float> rotationZ = cyMatrix4f::MatrixRotationZ(0);
+	cy::Matrix4<float> rotationX = cyMatrix4f::MatrixRotationX(0);
+	cyPoint3f translation = cyPoint3f(0,0,-40);
 	translationMatrix = cyMatrix4f::MatrixTrans(translation);
 
 	totalRotationMatrix = rotationX * rotationZ;
 	cameraTransformationMatrix = translationMatrix * totalRotationMatrix;
-	planeCameraTransformationMatrix = cyMatrix4f::MatrixTrans(cyPoint3f(0, -5, -10));
+	planeCameraTransformationMatrix = cyMatrix4f::MatrixTrans(cyPoint3f(0, -7, -10));
 
 	lightRotationMatrix = cyMatrix4f::MatrixRotationX(0);
 	teapotLightMVP = lightProj * lightView * cameraTransformationMatrix;
@@ -101,6 +109,13 @@ void display() {
 
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	cube_shaders.Bind();
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeTexId);
+	glDepthMask(false);
+	glBindVertexArray(cubeVertexArrayObj);
+	glDrawArrays(GL_TRIANGLES, 0, cube_vertices.size());
+	glDepthMask(true);
 
 	teapot_shaders.Bind();
 	glBindVertexArray(vertexArrayObj);
@@ -146,26 +161,31 @@ void zoom() {
 		translation = cyPoint3f(0.0f, 0.0f, -1.0f);
 	}
 	translationMatrix = cyMatrix4f::MatrixTrans(translation) * translationMatrix;
+	cubeTranslationMatrix = cyMatrix4f::MatrixTrans(translation) * cubeTranslationMatrix * totalRotationMatrix;
 	cameraTransformationMatrix = translationMatrix * totalRotationMatrix;
 	teapot_shaders.SetUniform(1, cameraTransformationMatrix);
 	teapot_shaders.SetUniform(3, cameraTransformationMatrix.GetInverse().GetTranspose());
+	cube_shaders.Bind();
+	cube_shaders.SetUniform(1, cubeTranslationMatrix);
 	glutPostRedisplay();
 }
 
 void rotatePlane() {
 	plane_shaders.Bind();
-	totalPlaneRotationMatrix = cyMatrix4f::MatrixRotationX(0.5) * totalPlaneRotationMatrix;
+	totalPlaneRotationMatrix = cyMatrix4f::MatrixRotationX(0.1) * totalPlaneRotationMatrix;
 	planeCameraTransformationMatrix = planeTransformationMatrix * totalPlaneRotationMatrix;
 	plane_shaders.SetUniform(1, planeCameraTransformationMatrix);
 	glutPostRedisplay();
 }
 
 void rotate() {
-	teapot_shaders.Bind();
 	totalRotationMatrix = cyMatrix4f::MatrixRotationY(0.5) * totalRotationMatrix;
 	cameraTransformationMatrix = translationMatrix * totalRotationMatrix;
+	teapot_shaders.Bind();
 	teapot_shaders.SetUniform(1, cameraTransformationMatrix);
 	teapot_shaders.SetUniform(3, cameraTransformationMatrix.GetInverse().GetTranspose());
+	cube_shaders.Bind();
+	cube_shaders.SetUniform(1, cubeTranslationMatrix * totalRotationMatrix);
 	glutPostRedisplay();
 }
 
@@ -393,24 +413,18 @@ std::vector<unsigned char> flipImage(int total, std::vector<unsigned char> image
 	return image;
 }
 
-std::vector<unsigned char> generateImage(std::string image) {
+std::vector<unsigned char> generateImage(std::string image, unsigned &im_width, unsigned &im_height) {
 	std::vector<unsigned char> diffuseVector;
 	int total;
-	if (diffWidth == 0) {
-		lodepng::decode(diffuseVector, diffWidth, diffHeight, image);
-		total = diffHeight * diffWidth * 4 - 1;
-	}
-	else {
-		lodepng::decode(diffuseVector, specWidth, specHeight, image);
-		total = specHeight * specWidth * 4 - 1;
-	}
+	lodepng::decode(diffuseVector, im_width, im_height, image);
+	total = im_width * im_height * 4 - 1;
 	return flipImage(total, diffuseVector);
 }
 
 void loadTextures() {
-	std::vector<unsigned char> diffuseImage = generateImage("bricks2.png");
-	std::vector<unsigned char> normalImage = generateImage("bricks2_normal.png");
-	std::vector<unsigned char> displacementImage = generateImage("bricks2_disp.png");
+	std::vector<unsigned char> diffuseImage = generateImage("bricks2.png", diffWidth, diffHeight);
+	std::vector<unsigned char> normalImage = generateImage("bricks2_normal.png", specWidth, specHeight);
+	std::vector<unsigned char> displacementImage = generateImage("bricks2_disp.png", specWidth, specHeight);
 
 	glGenTextures(3, textureID);
 
@@ -502,6 +516,91 @@ void createPlane() {
 	glBindVertexArray(0);
 }
 
+void loadCubeTextures() {
+	std::vector<unsigned char> negX = generateImage("bricks2.png", cubeWidth, cubeHeight);
+//	std::vector<unsigned char> negY = generateImage("bricks2.png");
+//	std::vector<unsigned char> negZ = generateImage("bricks2.png");
+//	std::vector<unsigned char> posX = generateImage("bricks2.png");
+//	std::vector<unsigned char> posY = generateImage("bricks2.png");
+//	std::vector<unsigned char> posZ = generateImage("bricks2.png");
+	std::vector<unsigned char> negY = negX;
+	std::vector<unsigned char> negZ = negX;
+	std::vector<unsigned char> posZ = negX;
+	std::vector<unsigned char> posX = negX;
+	std::vector<unsigned char> posY = negX;
+
+
+	glGenTextures(1, &cubeTexId);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeTexId);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &posX[0]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &negX[0]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &posY[0]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &negY[0]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &posZ[0]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &negZ[0]);
+
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+}
+
+void populateCubeVertices(cyTriMesh box) {
+	cube_vertices = {};
+	for (int i = 0; i < box.NF(); i = i + 1) {
+		cy::TriMesh::TriFace face = box.F(i);
+		cube_vertices.push_back(box.V(face.v[0]));
+		cube_vertices.push_back(box.V(face.v[1]));
+		cube_vertices.push_back(box.V(face.v[2]));
+		cy::TriMesh::TriFace nface = box.FN(i);
+		cube_normals.push_back(box.VN(nface.v[0]).GetNormalized());
+		cube_normals.push_back(box.VN(nface.v[1]).GetNormalized());
+		cube_normals.push_back(box.VN(nface.v[2]).GetNormalized());
+	}
+}
+
+void createSceneBox()
+{
+	cyTriMesh box = cyTriMesh();
+	box.LoadFromFileObj("cube.obj");
+	box.ComputeBoundingBox();
+	box.ComputeNormals();
+
+	cubeTranslationMatrix = cyMatrix4f::MatrixTrans(cyPoint3f(0, 0, 0));
+
+	cube_shaders = cy::GLSLProgram();
+	cube_shaders.BuildFiles("cube_vertex_shader.glsl", "cube_fragment_shader.glsl");
+	cube_shaders.Bind();
+	cube_shaders.RegisterUniform(1, "cameraTransformation");
+	cube_shaders.SetUniform(1, cubeTranslationMatrix * totalRotationMatrix);
+	cube_shaders.RegisterUniform(2, "perspective");
+	cube_shaders.SetUniform(2, perspectiveMatrix);
+	cube_shaders.RegisterUniform(3, "view");
+	cube_shaders.SetUniform(3, view);
+
+	populateCubeVertices(box);
+
+	cyPoint4f point = perspectiveMatrix * view * totalRotationMatrix * cube_vertices.at(0);
+
+	GLuint vertexBufferObj[2];
+
+	glGenVertexArrays(1, &cubeVertexArrayObj);
+	glBindVertexArray(cubeVertexArrayObj);
+
+	glGenBuffers(1, vertexBufferObj);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * cube_vertices.size(), &cube_vertices[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	glBindVertexArray(0);
+
+	loadCubeTextures();
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -521,8 +620,8 @@ int main(int argc, char* argv[])
 
 	float fov = fov_degrees * (M_PI / 180.0f);
 	perspectiveMatrix = cyMatrix4f::MatrixPerspective(fov, 1.0f, 0.1f, far_plane);
-	buffer.Initialize(true, width, width);
 	createObj(argv[1]);
+	createSceneBox();
 	createPlane();
 
 	glEnable(GL_DEPTH_TEST);

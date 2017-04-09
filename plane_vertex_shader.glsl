@@ -3,7 +3,7 @@
 layout(location = 0) in vec3 pos; 
 layout(location = 1) in vec3 tex;
 layout(location = 2) in vec3 tangent;
-layout(location = 2) in vec3 bitangent;
+layout(location = 3) in vec3 bitangent;
 
 out vec2 texCoor;
 out vec3 tangentLightPos;

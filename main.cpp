@@ -74,7 +74,7 @@ std::vector<cyPoint3f> cube_normals;
 std::vector<cyPoint3f> cube_texture_vertices;
 
 GLuint textureID[3];
-GLuint cubeTexId;
+GLuint cubeTexId[3];
 unsigned diffWidth, diffHeight, specHeight, specWidth;
 unsigned cubeWidth, cubeHeight;
 cyPoint3f upVec = cyPoint3f(0, 1, 0);
@@ -111,7 +111,15 @@ void display() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	cube_shaders.Bind();
-	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeTexId);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeTexId[0]);
+	glUniform1i(glGetUniformLocation(cube_shaders.GetID(), "diffuseMap"), 0);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeTexId[1]);
+	glUniform1i(glGetUniformLocation(cube_shaders.GetID(), "normalMap"), 1);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeTexId[2]);
+	glUniform1i(glGetUniformLocation(cube_shaders.GetID(), "depthMap"), 2);
 	glDepthMask(false);
 	glBindVertexArray(cubeVertexArrayObj);
 	glDrawArrays(GL_TRIANGLES, 0, cube_vertices.size());
@@ -166,7 +174,7 @@ void zoom() {
 	teapot_shaders.SetUniform(1, cameraTransformationMatrix);
 	teapot_shaders.SetUniform(3, cameraTransformationMatrix.GetInverse().GetTranspose());
 	cube_shaders.Bind();
-	cube_shaders.SetUniform(1, cubeTranslationMatrix);
+	cube_shaders.SetUniform(1, cubeTranslationMatrix * totalRotationMatrix);
 	glutPostRedisplay();
 }
 
@@ -377,24 +385,34 @@ void createObj(char* fileName) {
 	glBindVertexArray(0);
 }
 
-std::vector<cyPoint3f> calculateTangentsOfPlane()
+std::vector<cyPoint3f> calculateTangentsOfPlane(std::vector<cyPoint3f> vertices, std::vector<cyPoint3f> texture_vertices)
 {
-	cyPoint3f edge1 = plane_vertices.at(1) - plane_vertices.at(0);
-	cyPoint3f edge2 = plane_vertices.at(2) - plane_vertices.at(0);
-	cyPoint3f tex_change1 = planeTextureVertices.at(1) - planeTextureVertices.at(0);
-	cyPoint3f tex_change2 = planeTextureVertices.at(2) - planeTextureVertices.at(0);
-	float determinant_tri1 = 1.0f / (tex_change1.x * tex_change2.y - tex_change2.x * tex_change1.y);
-	cyPoint3f tangent_tri1 = cyPoint3f(determinant_tri1 * (tex_change2.y * edge1.x - tex_change1.y * edge2.x),
-		determinant_tri1 * (tex_change2.y * edge1.y - tex_change1.y * edge2.y),
-		determinant_tri1 * (tex_change2.y * edge1.z - tex_change1.y * edge2.z));
-	tangent_tri1 = tangent_tri1.GetNormalized();
+	cyPoint3f edge1 = vertices.at(1) - vertices.at(0);
+	cyPoint3f edge2 = vertices.at(2) - vertices.at(0);
+	cyPoint3f tex_change1 = texture_vertices.at(1) - texture_vertices.at(0);
+	cyPoint3f tex_change2 = texture_vertices.at(2) - texture_vertices.at(0);
+	float det = tex_change1.x * tex_change2.y - tex_change2.x * tex_change1.y;
+	cyPoint3f tangent;
+	cyPoint3f bitangent;
+	if(det == 0)
+	{
+		tangent = cyPoint3f(1.0f, 0.0f, 0.0f);
+		bitangent = cyPoint3f(0.0f, 1.0f, 0.0f);
+	}
+	else {
+		float determinant_tri1 = 1.0f / det;
+		 tangent = cyPoint3f(determinant_tri1 * (tex_change2.y * edge1.x - tex_change1.y * edge2.x),
+			determinant_tri1 * (tex_change2.y * edge1.y - tex_change1.y * edge2.y),
+			determinant_tri1 * (tex_change2.y * edge1.z - tex_change1.y * edge2.z));
+		tangent = tangent.GetNormalized();
 
-	cyPoint3f bitangent1 = cyPoint3f(determinant_tri1 * (-tex_change2.x * edge1.x + tex_change1.x * edge2.x),
-	determinant_tri1 * (-tex_change2.x * edge1.y + tex_change1.x * edge2.y),
-		determinant_tri1 * (-tex_change2.x * edge1.z + tex_change1.x * edge2.z));
-	bitangent1 = bitangent1.GetNormalized();
+		 bitangent = cyPoint3f(determinant_tri1 * (-tex_change2.x * edge1.x + tex_change1.x * edge2.x),
+			determinant_tri1 * (-tex_change2.x * edge1.y + tex_change1.x * edge2.y),
+			determinant_tri1 * (-tex_change2.x * edge1.z + tex_change1.x * edge2.z));
+		bitangent = bitangent.GetNormalized();
+	}
 
-	return std::vector<cyPoint3f>{tangent_tri1, bitangent1};
+	return std::vector<cyPoint3f>{tangent, bitangent};
 
 }
 
@@ -421,25 +439,23 @@ std::vector<unsigned char> generateImage(std::string image, unsigned &im_width, 
 	return flipImage(total, diffuseVector);
 }
 
-void loadTextures() {
+void loadTextures(GLuint id[]) {
 	std::vector<unsigned char> diffuseImage = generateImage("bricks2.png", diffWidth, diffHeight);
 	std::vector<unsigned char> normalImage = generateImage("bricks2_normal.png", specWidth, specHeight);
 	std::vector<unsigned char> displacementImage = generateImage("bricks2_disp.png", specWidth, specHeight);
 
-	glGenTextures(3, textureID);
-
 	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, textureID[0]);
+	glBindTexture(GL_TEXTURE_2D, id[0]);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); //GL_NEAREST = no smoothing
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexImage2D(GL_TEXTURE_2D, 0, 4, diffWidth, diffHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &diffuseImage[0]);
 
-	glBindTexture(GL_TEXTURE_2D, textureID[1]);
+	glBindTexture(GL_TEXTURE_2D, id[1]);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); //GL_NEAREST = no smoothing
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexImage2D(GL_TEXTURE_2D, 0, 4, specWidth, specHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &normalImage[0]);
 
-	glBindTexture(GL_TEXTURE_2D, textureID[2]);
+	glBindTexture(GL_TEXTURE_2D, id[2]);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); //GL_NEAREST = no smoothing
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexImage2D(GL_TEXTURE_2D, 0, 4, specWidth, specHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &displacementImage[0]);
@@ -470,7 +486,8 @@ void createPlane() {
 	plane_shaders.RegisterUniform(6, "cameraPos");
 	plane_shaders.SetUniform(6, cameraPos);
 
-	loadTextures();
+	glGenTextures(3, textureID);
+	loadTextures(textureID);
 
 	GLuint planeVertexBufferObj[1];
 	GLuint planeTextureBufferObj[1];
@@ -493,7 +510,7 @@ void createPlane() {
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
 
-	std::vector<cyPoint3f> tangentsBitangents = calculateTangentsOfPlane();
+	std::vector<cyPoint3f> tangentsBitangents = calculateTangentsOfPlane(plane_vertices, planeTextureVertices);
 
 	cyPoint3f tangent = tangentsBitangents.at(0);
 	std::vector<cyPoint3f> tangents = { tangent, tangent, tangent, tangent, tangent, tangent };
@@ -510,14 +527,14 @@ void createPlane() {
 	glGenBuffers(1, planeBitangentBufferObj);
 	glBindBuffer(GL_ARRAY_BUFFER, planeBitangentBufferObj[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * tangents.size(), &bitangents[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+	glEnableVertexAttribArray(3);
+	glVertexAttribPointer(3, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
 
 	glBindVertexArray(0);
 }
 
-void loadCubeTextures() {
-	std::vector<unsigned char> negX = generateImage("bricks2.png", cubeWidth, cubeHeight);
+void loadCubeTextures(int num, char* imgName) {
+	std::vector<unsigned char> negX = generateImage(imgName, cubeWidth, cubeHeight);
 //	std::vector<unsigned char> negY = generateImage("bricks2.png");
 //	std::vector<unsigned char> negZ = generateImage("bricks2.png");
 //	std::vector<unsigned char> posX = generateImage("bricks2.png");
@@ -529,9 +546,7 @@ void loadCubeTextures() {
 	std::vector<unsigned char> posX = negX;
 	std::vector<unsigned char> posY = negX;
 
-
-	glGenTextures(1, &cubeTexId);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeTexId);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeTexId[num]);
 	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &posX[0]);
 	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &negX[0]);
 	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &posY[0]);
@@ -579,12 +594,16 @@ void createSceneBox()
 	cube_shaders.SetUniform(2, perspectiveMatrix);
 	cube_shaders.RegisterUniform(3, "view");
 	cube_shaders.SetUniform(3, view);
+	cube_shaders.RegisterUniform(4, "lightPos");
+	cube_shaders.SetUniform(4, lightPos);
+	cube_shaders.RegisterUniform(5, "cameraPos");
+	cube_shaders.SetUniform(5, cameraPos);
 
 	populateCubeVertices(box);
 
-	cyPoint4f point = perspectiveMatrix * view * totalRotationMatrix * cube_vertices.at(0);
-
 	GLuint vertexBufferObj[2];
+	GLuint vertexTangentObj[1];
+	GLuint vertexBitangentObj[1];
 
 	glGenVertexArrays(1, &cubeVertexArrayObj);
 	glBindVertexArray(cubeVertexArrayObj);
@@ -596,9 +615,44 @@ void createSceneBox()
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
 
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * cube_normals.size(), &cube_normals[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	std::vector<cyPoint3f> tangents;
+	std::vector<cyPoint3f> bitangents;
+
+	for(int i = 0; i < cube_vertices.size(); i = i + 3)
+	{
+		std::vector<cyPoint3f> points = { cube_vertices.at(i), cube_vertices.at(i + 1), cube_vertices.at(i + 2) };
+		std::vector<cyPoint3f> tangentsBitangents = calculateTangentsOfPlane(points, points);
+		for(int j = 0; j < 3; j++)
+		{
+			tangents.push_back(tangentsBitangents.at(0));
+			bitangents.push_back(tangentsBitangents.at(1));
+		}
+		
+	}
+
+	glGenBuffers(1, vertexTangentObj);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexTangentObj[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * tangents.size(), &tangents[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	glGenBuffers(1, vertexBitangentObj);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBitangentObj[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * tangents.size(), &bitangents[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(3);
+	glVertexAttribPointer(3, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
 	glBindVertexArray(0);
 
-	loadCubeTextures();
+	glGenTextures(3, cubeTexId);
+	loadCubeTextures(0, "bricks2.png");
+	loadCubeTextures(1, "bricks2_normal.png");
+	loadCubeTextures(2, "bricks2_disp.png");
 }
 
 

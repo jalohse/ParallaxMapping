@@ -46,9 +46,9 @@ std::vector<cyPoint3f> planeTextureVertices = {
 
 cy::Matrix4<float> totalPlaneRotationMatrix = cyMatrix4f::MatrixIdentity();
 cyPoint3f lightPos = cyPoint3f(18, 60, 20);
-cyPoint3f cameraPos = cyPoint3f(0, 0, 5);
-
-cyTriMesh mesh;
+cyPoint3f cameraPos = cyPoint3f(0, -3, 5);
+cyPoint3f upVec = cyPoint3f(0, 1, 0);
+cyPoint3f lookAt = cyPoint3f(0, -3, 0);
 
 GLuint vertexArrayObj;
 GLuint planeVertexArrayObj;
@@ -56,7 +56,6 @@ GLuint cubeVertexArrayObj;
 GLuint depthVertexArrayObj;
 
 cy::GLSLProgram teapot_shaders;
-cy::GLSLProgram depth_shaders;
 cy::GLSLProgram plane_shaders;
 cy::GLSLProgram cube_shaders;
 
@@ -77,8 +76,6 @@ int selected;
 int selectedKey;
 
 std::vector<cyPoint3f> vertices;
-std::vector<cyPoint3f> textureVertices;
-std::vector<cyPoint3f> normals;
 std::vector<cyPoint3f> lightVertices;
 
 std::vector<cyPoint3f> cube_vertices;
@@ -96,9 +93,8 @@ GLuint cubeTexId[3];
 unsigned diffWidth, diffHeight, specHeight, specWidth;
 unsigned cubeWidth, cubeHeight;
 
-cyPoint3f upVec = cyPoint3f(0, 1, 0);
-cyMatrix4f view = cyMatrix4f::MatrixView(cameraPos, cyPoint3f(0, 0, 0), upVec);
-cyMatrix4f lightView = cyMatrix4f::MatrixView(lightPos, cyPoint3f(0, 0, 0), upVec);
+cyMatrix4f view = cyMatrix4f::MatrixView(cameraPos, lookAt, upVec);
+cyMatrix4f lightView = cyMatrix4f::MatrixView(lightPos, lookAt, upVec);
 cyMatrix4f lightProj = cyMatrix4f::MatrixPerspective(M_PI / 8, 1, 20, 200);
 cyMatrix4f bias = cyMatrix4f::MatrixTrans(cyPoint3f(0.5f, 0.5f, 0.495f)) * cyMatrix4f::MatrixScale(0.5f, 0.5f, 0.5f);
 bool zoom_in = true;
@@ -108,12 +104,9 @@ int movement = 0;
 
 
 void setInitialRotationAndTranslation() {
-	cyPoint3f max = mesh.GetBoundMax();
-	cyPoint3f min = mesh.GetBoundMin();
-	cyPoint3f mid = max + min;
 	cy::Matrix4<float> rotationZ = cyMatrix4f::MatrixRotationZ(0);
 	cy::Matrix4<float> rotationX = cyMatrix4f::MatrixRotationX(0);
-	cyPoint3f translation = cyPoint3f(0,0,-40);
+	cyPoint3f translation = cyPoint3f(0,-5,0);
 	translationMatrix = cyMatrix4f::MatrixTrans(translation);
 
 	totalRotationMatrix = rotationX * rotationZ;
@@ -146,21 +139,17 @@ void display() {
 	glDepthMask(true);
 
 	teapot_shaders.Bind();
-	glBindVertexArray(vertexArrayObj);
-	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-
-	plane_shaders.Bind();
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, textureID[0]);
-	glUniform1i(glGetUniformLocation(plane_shaders.GetID(), "diffuseMap"), 0);
+	glUniform1i(glGetUniformLocation(teapot_shaders.GetID(), "diffuseMap"), 0);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, textureID[1]);
-	glUniform1i(glGetUniformLocation(plane_shaders.GetID(), "normalMap"), 1);
+	glUniform1i(glGetUniformLocation(teapot_shaders.GetID(), "normalMap"), 1);
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, textureID[2]);
-	glUniform1i(glGetUniformLocation(plane_shaders.GetID(), "depthMap"), 2);
-	glBindVertexArray(planeVertexArrayObj);
-	glDrawArrays(GL_TRIANGLES, 0, plane_vertices.size());
+	glUniform1i(glGetUniformLocation(teapot_shaders.GetID(), "depthMap"), 2);
+	glBindVertexArray(vertexArrayObj);
+	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 
 	glutSwapBuffers();
 }
@@ -222,8 +211,6 @@ void updateLightPosition() {
 	lightView = cyMatrix4f::MatrixView(lightPos, cyPoint3f(0, 0, 0), cyPoint3f(0, 1, 0));
 	teapotLightMVP = lightProj * lightView * cameraTransformationMatrix;
 	planeLightMVP = lightProj * lightView * planeCameraTransformationMatrix;
-	depth_shaders.Bind();
-	depth_shaders.SetUniform(1, teapotLightMVP);
 	teapot_shaders.Bind();
 	teapot_shaders.SetUniform(6, bias * teapotLightMVP);
 	teapot_shaders.SetUniform(7, lightPos);
@@ -323,87 +310,6 @@ void reset(int key, int x, int y) {
 	}
 }
 
-void populateVerticesAndNormals() {
-	vertices = {};
-	for (int i = 0; i < mesh.NF(); i = i + 1) {
-		cy::TriMesh::TriFace face = mesh.F(i);
-		vertices.push_back(mesh.V(face.v[0]));
-		vertices.push_back(mesh.V(face.v[1]));
-		vertices.push_back(mesh.V(face.v[2]));
-		cy::TriMesh::TriFace nface = mesh.FN(i);
-		normals.push_back(mesh.VN(nface.v[0]).GetNormalized());
-		normals.push_back(mesh.VN(nface.v[1]).GetNormalized());
-		normals.push_back(mesh.VN(nface.v[2]).GetNormalized());
-	}
-}
-
-
-void createObj(char* fileName) {
-	mesh = cyTriMesh();
-	mesh.LoadFromFileObj(fileName);
-	mesh.ComputeBoundingBox();
-	mesh.ComputeNormals();
-
-	populateVerticesAndNormals();
-	setInitialRotationAndTranslation();
-
-	teapot_shaders = cy::GLSLProgram();
-	teapot_shaders.BuildFiles("teapot_vertex_shader.glsl", "teapot_fragment_shader.glsl");
-	teapot_shaders.Bind();
-	teapot_shaders.RegisterUniform(1, "cameraTransformation");
-	teapot_shaders.SetUniform(1, cameraTransformationMatrix);
-	teapot_shaders.RegisterUniform(2, "perspective");
-	teapot_shaders.SetUniform(2, perspectiveMatrix);
-	teapot_shaders.RegisterUniform(3, "inverseCamera");
-	teapot_shaders.SetUniform(3, cameraTransformationMatrix.GetInverse().GetTranspose());
-	teapot_shaders.RegisterUniform(4, "lightRotation");
-	teapot_shaders.SetUniform(4, lightRotationMatrix);
-	teapot_shaders.RegisterUniform(5, "view");
-	teapot_shaders.SetUniform(5, view);
-	teapot_shaders.RegisterUniform(6, "shadowMatrix");
-	teapot_shaders.SetUniform(6, bias * teapotLightMVP);
-	teapot_shaders.RegisterUniform(7, "lightPos");
-	teapot_shaders.SetUniform(7, lightPos);
-
-	GLuint vertexBufferObj[2];
-
-	glGenVertexArrays(1, &vertexArrayObj);
-	glBindVertexArray(vertexArrayObj);
-
-	glGenBuffers(1, vertexBufferObj);
-
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
-
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj[1]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * normals.size(), &normals[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
-
-	glBindVertexArray(0);
-
-	depth_shaders = cy::GLSLProgram();
-	depth_shaders.BuildFiles("depth_map_vertex_shader.glsl", "depth_map_fragment_shader.glsl");
-	depth_shaders.Bind();
-	depth_shaders.RegisterUniform(1, "shadowMatrix");
-	depth_shaders.SetUniform(1, teapotLightMVP);
-
-	GLuint depthVertexBufferObj[2];
-
-	glGenVertexArrays(1, &depthVertexArrayObj);
-	glBindVertexArray(depthVertexArrayObj);
-
-	glGenBuffers(1, depthVertexBufferObj);
-
-	glBindBuffer(GL_ARRAY_BUFFER, depthVertexBufferObj[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
-
-	glBindVertexArray(0);
-}
 
 std::vector<cyPoint3f> calculateTangentsOfPlane(std::vector<cyPoint3f> vertices, std::vector<cyPoint3f> texture_vertices)
 {
@@ -414,26 +320,41 @@ std::vector<cyPoint3f> calculateTangentsOfPlane(std::vector<cyPoint3f> vertices,
 	float det = tex_change1.x * tex_change2.y - tex_change2.x * tex_change1.y;
 	cyPoint3f tangent;
 	cyPoint3f bitangent;
-	if(det == 0)
+	if (det == 0)
 	{
 		tangent = cyPoint3f(1.0f, 0.0f, 0.0f);
 		bitangent = cyPoint3f(0.0f, 1.0f, 0.0f);
 	}
 	else {
 		float determinant_tri1 = 1.0f / det;
-		 tangent = cyPoint3f(determinant_tri1 * (tex_change2.y * edge1.x - tex_change1.y * edge2.x),
+		tangent = cyPoint3f(determinant_tri1 * (tex_change2.y * edge1.x - tex_change1.y * edge2.x),
 			determinant_tri1 * (tex_change2.y * edge1.y - tex_change1.y * edge2.y),
 			determinant_tri1 * (tex_change2.y * edge1.z - tex_change1.y * edge2.z));
 		tangent = tangent.GetNormalized();
 
-		 bitangent = cyPoint3f(determinant_tri1 * (-tex_change2.x * edge1.x + tex_change1.x * edge2.x),
+		bitangent = cyPoint3f(determinant_tri1 * (-tex_change2.x * edge1.x + tex_change1.x * edge2.x),
 			determinant_tri1 * (-tex_change2.x * edge1.y + tex_change1.x * edge2.y),
 			determinant_tri1 * (-tex_change2.x * edge1.z + tex_change1.x * edge2.z));
 		bitangent = bitangent.GetNormalized();
 	}
 
 	return std::vector<cyPoint3f>{tangent, bitangent};
+}
 
+void calculateTangents(std::vector<cyPoint3f> vertices, std::vector<cyPoint3f> texture_vertices, std::vector<cyPoint3f> &tangents, std::vector<cyPoint3f> &bitangents)
+{
+	for (int i = 0; i < vertices.size(); i = i + 3)
+	{
+		std::vector<cyPoint3f> points = { vertices.at(i), vertices.at(i + 1), vertices.at(i + 2) };
+		std::vector<cyPoint3f> tex_points = { texture_vertices.at(i), texture_vertices.at(i + 1), texture_vertices.at(i + 2) };
+		std::vector<cyPoint3f> tangentsBitangents = calculateTangentsOfPlane(points, tex_points);
+		for (int j = 0; j < 3; j++)
+		{
+			tangents.push_back(tangentsBitangents.at(0));
+			bitangents.push_back(tangentsBitangents.at(1));
+		}
+
+	}
 }
 
 std::vector<unsigned char> generateImage(std::string image, unsigned &im_width, unsigned &im_height) {
@@ -442,10 +363,13 @@ std::vector<unsigned char> generateImage(std::string image, unsigned &im_width, 
 	return diffuseVector;
 }
 
-void loadTextures(GLuint id[]) {
-	std::vector<unsigned char> diffuseImage = generateImage("bricks2.png", diffWidth, diffHeight);
-	std::vector<unsigned char> normalImage = generateImage("bricks2_normal.png", specWidth, specHeight);
-	std::vector<unsigned char> displacementImage = generateImage("bricks2_disp.png", specWidth, specHeight);
+void loadTextures(GLuint id[], std::string img_name) {
+	std::string color_img = img_name + color_suffix;
+	std::string normal_img = img_name + normal_suffix;
+	std::string disp_img = img_name + disp_suffix;
+	std::vector<unsigned char> diffuseImage = generateImage(color_img, diffWidth, diffHeight);
+	std::vector<unsigned char> normalImage = generateImage(normal_img, specWidth, specHeight);
+	std::vector<unsigned char> displacementImage = generateImage(disp_img, specWidth, specHeight);
 
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, id[0]);
@@ -465,6 +389,101 @@ void loadTextures(GLuint id[]) {
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 
+}
+
+void populateVerticesAndNormals(cyTriMesh mesh, std::vector<cyPoint3f> &normals, std::vector<cyPoint3f> &textureVertices) {
+	
+	for (int i = 0; i < mesh.NF(); i = i + 1) {
+		cy::TriMesh::TriFace face = mesh.F(i);
+		vertices.push_back(mesh.V(face.v[0]));
+		vertices.push_back(mesh.V(face.v[1]));
+		vertices.push_back(mesh.V(face.v[2]));
+		cy::TriMesh::TriFace nface = mesh.FN(i);
+		normals.push_back(mesh.VN(nface.v[0]).GetNormalized());
+		normals.push_back(mesh.VN(nface.v[1]).GetNormalized());
+		normals.push_back(mesh.VN(nface.v[2]).GetNormalized());
+		cy::TriMesh::TriFace texface = mesh.FT(i);
+		textureVertices.push_back(mesh.VT(texface.v[0]));
+		textureVertices.push_back(mesh.VT(texface.v[1]));
+		textureVertices.push_back(mesh.VT(texface.v[2]));
+	}
+}
+
+
+void createFountain() {
+	cyTriMesh mesh = cyTriMesh();
+	mesh.LoadFromFileObj("fountain.obj");
+	mesh.ComputeBoundingBox();
+	mesh.ComputeNormals();
+
+	std::vector<cyPoint3f> normals;
+	std::vector<cyPoint3f> textureVertices;
+
+	populateVerticesAndNormals(mesh, normals, textureVertices);
+	setInitialRotationAndTranslation();
+
+	teapot_shaders = cy::GLSLProgram();
+	teapot_shaders.BuildFiles("plane_vertex_shader.glsl", "plane_fragment_shader.glsl");
+	teapot_shaders.Bind();
+	teapot_shaders.RegisterUniform(1, "cameraTransformation");
+	teapot_shaders.SetUniform(1, cameraTransformationMatrix);
+	teapot_shaders.RegisterUniform(2, "perspective");
+	teapot_shaders.SetUniform(2, perspectiveMatrix);
+	teapot_shaders.RegisterUniform(3, "view");
+	teapot_shaders.SetUniform(3, view);
+	teapot_shaders.RegisterUniform(4, "lightPos");
+	teapot_shaders.SetUniform(4, lightPos);
+	teapot_shaders.RegisterUniform(5, "cameraPos");
+	teapot_shaders.SetUniform(5, cameraPos);
+
+	GLuint vertexBufferObj[2];
+	GLuint textureVertexBufferObj[1];
+	GLuint vertexTangentObj[1];
+	GLuint vertexBitangentObj[1];
+
+
+	glGenVertexArrays(1, &vertexArrayObj);
+	glBindVertexArray(vertexArrayObj);
+
+	glGenBuffers(1, vertexBufferObj);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * normals.size(), &normals[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	glGenBuffers(1, textureVertexBufferObj);
+	glBindBuffer(GL_ARRAY_BUFFER, textureVertexBufferObj[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * textureVertices.size(), &textureVertices[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	std::vector<cyPoint3f> tangents;
+	std::vector<cyPoint3f> bitangents;
+
+	calculateTangents(vertices, textureVertices, tangents, bitangents);
+
+	glGenBuffers(1, vertexTangentObj);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexTangentObj[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * tangents.size(), &tangents[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(3);
+	glVertexAttribPointer(3, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	glGenBuffers(1, vertexBitangentObj);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBitangentObj[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * bitangents.size(), &bitangents[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(4);
+	glVertexAttribPointer(4, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	glBindVertexArray(0);
+
+	glGenTextures(3, textureID);
+	loadTextures(textureID, "stone");
 }
 
 
@@ -490,7 +509,6 @@ void createPlane() {
 	plane_shaders.SetUniform(6, cameraPos);
 
 	glGenTextures(3, textureID);
-	loadTextures(textureID);
 
 	GLuint planeVertexBufferObj[1];
 	GLuint planeTextureBufferObj[1];
@@ -649,17 +667,7 @@ void createSceneBox()
 	std::vector<cyPoint3f> tangents;
 	std::vector<cyPoint3f> bitangents;
 
-	for(int i = 0; i < cube_vertices.size(); i = i + 3)
-	{
-		std::vector<cyPoint3f> points = { cube_vertices.at(i), cube_vertices.at(i + 1), cube_vertices.at(i + 2) };
-		std::vector<cyPoint3f> tangentsBitangents = calculateTangentsOfPlane(points, points);
-		for(int j = 0; j < 3; j++)
-		{
-			tangents.push_back(tangentsBitangents.at(0));
-			bitangents.push_back(tangentsBitangents.at(1));
-		}
-		
-	}
+	calculateTangents(cube_vertices, cube_vertices, tangents, bitangents);
 
 	glGenBuffers(1, vertexTangentObj);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexTangentObj[0]);
@@ -669,7 +677,7 @@ void createSceneBox()
 
 	glGenBuffers(1, vertexBitangentObj);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBitangentObj[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * tangents.size(), &bitangents[0], GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * bitangents.size(), &bitangents[0], GL_STATIC_DRAW);
 	glEnableVertexAttribArray(3);
 	glVertexAttribPointer(3, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
 
@@ -700,9 +708,8 @@ int main(int argc, char* argv[])
 
 	float fov = fov_degrees * (M_PI / 180.0f);
 	perspectiveMatrix = cyMatrix4f::MatrixPerspective(fov, 1.0f, 0.1f, far_plane);
-	createObj(argv[1]);
+	createFountain();
 	createSceneBox();
-	createPlane();
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_DEBUG_OUTPUT);

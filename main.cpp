@@ -16,6 +16,16 @@
 #define flip_degree 135.1f
 #define y_trans -7
 
+#define cube_front "front.png"
+#define cube_back "back.png"
+#define cube_left "left.png"
+#define cube_right "right.png"
+#define cube_top "top.png"
+#define color_suffix "_COLOR.png"
+#define disp_suffix "_DISP.png"
+#define normal_suffix "_NRM.png"
+#define spec_suffix "_SPEC.png"
+
 std::vector<cyPoint3f> plane_vertices = {
 	cyPoint3f(-1.5f, -1.5f, 0.0f),
 	cyPoint3f(1.5f, -1.5f, 0.0f),
@@ -60,10 +70,12 @@ cy::Matrix4<float> cubeTranslationMatrix;
 cy::Matrix4<float> planeTransformationMatrix;
 cy::Matrix4<float> lightTransformationMatrix;
 cy::Matrix4<float> lightRotationMatrix;
+cyMatrix4f teapotLightMVP;
+cyMatrix4f planeLightMVP;
+
 int selected;
 int selectedKey;
-bool zoom_in = true;
-int movement = 0;
+
 std::vector<cyPoint3f> vertices;
 std::vector<cyPoint3f> textureVertices;
 std::vector<cyPoint3f> normals;
@@ -72,18 +84,26 @@ std::vector<cyPoint3f> lightVertices;
 std::vector<cyPoint3f> cube_vertices;
 std::vector<cyPoint3f> cube_normals;
 std::vector<cyPoint3f> cube_texture_vertices;
+std::vector<unsigned char> cube_front_img;
+std::vector<unsigned char> cube_back_img;
+std::vector<unsigned char> cube_left_img;
+std::vector<unsigned char> cube_right_img;
+std::vector<unsigned char> cube_top_img;
 
 GLuint textureID[3];
 GLuint cubeTexId[3];
+
 unsigned diffWidth, diffHeight, specHeight, specWidth;
 unsigned cubeWidth, cubeHeight;
+
 cyPoint3f upVec = cyPoint3f(0, 1, 0);
 cyMatrix4f view = cyMatrix4f::MatrixView(cameraPos, cyPoint3f(0, 0, 0), upVec);
 cyMatrix4f lightView = cyMatrix4f::MatrixView(lightPos, cyPoint3f(0, 0, 0), upVec);
 cyMatrix4f lightProj = cyMatrix4f::MatrixPerspective(M_PI / 8, 1, 20, 200);
 cyMatrix4f bias = cyMatrix4f::MatrixTrans(cyPoint3f(0.5f, 0.5f, 0.495f)) * cyMatrix4f::MatrixScale(0.5f, 0.5f, 0.5f);
-cyMatrix4f teapotLightMVP;
-cyMatrix4f planeLightMVP;
+bool zoom_in = true;
+int movement = 0;
+
 
 
 
@@ -416,27 +436,10 @@ std::vector<cyPoint3f> calculateTangentsOfPlane(std::vector<cyPoint3f> vertices,
 
 }
 
-std::vector<unsigned char> flipImage(int total, std::vector<unsigned char> imageVector) {
-	std::vector<unsigned char> image(total + 1);
-	for (int i = 0; i <= total; i += 4) {
-		char r = imageVector[total - i - 3];
-		char g = imageVector[total - i - 2];
-		char b = imageVector[total - i - 1];
-		char a = imageVector[total - i];
-		image[i] = r;
-		image[i + 1] = g;
-		image[i + 2] = b;
-		image[i + 3] = a;
-	}
-	return image;
-}
-
 std::vector<unsigned char> generateImage(std::string image, unsigned &im_width, unsigned &im_height) {
 	std::vector<unsigned char> diffuseVector;
-	int total;
 	lodepng::decode(diffuseVector, im_width, im_height, image);
-	total = im_width * im_height * 4 - 1;
-	return flipImage(total, diffuseVector);
+	return diffuseVector;
 }
 
 void loadTextures(GLuint id[]) {
@@ -533,26 +536,49 @@ void createPlane() {
 	glBindVertexArray(0);
 }
 
-void loadCubeTextures(int num, char* imgName) {
-	std::vector<unsigned char> negX = generateImage(imgName, cubeWidth, cubeHeight);
-//	std::vector<unsigned char> negY = generateImage("bricks2.png");
-//	std::vector<unsigned char> negZ = generateImage("bricks2.png");
-//	std::vector<unsigned char> posX = generateImage("bricks2.png");
-//	std::vector<unsigned char> posY = generateImage("bricks2.png");
-//	std::vector<unsigned char> posZ = generateImage("bricks2.png");
-	std::vector<unsigned char> negY = negX;
-	std::vector<unsigned char> negZ = negX;
-	std::vector<unsigned char> posZ = negX;
-	std::vector<unsigned char> posX = negX;
-	std::vector<unsigned char> posY = negX;
+
+void loadCubeTextures(int num) {
+	if(cube_front_img.empty())
+	{
+		cube_front_img = generateImage(cube_front, cubeWidth, cubeHeight);
+	}
+	if (cube_back_img.empty())
+	{
+		cube_back_img = generateImage(cube_back, cubeWidth, cubeHeight);
+	}
+	if (cube_left_img.empty())
+	{
+		cube_left_img = generateImage(cube_left, cubeWidth, cubeHeight);
+	}
+	if (cube_right_img.empty())
+	{
+		cube_right_img = generateImage(cube_right, cubeWidth, cubeHeight);
+	}
+	if (cube_top_img.empty())
+	{
+		cube_top_img = generateImage(cube_top, cubeWidth, cubeHeight);
+	}
+	std::string img_name = "floor";
+	if(num == 0)
+	{
+		img_name += color_suffix;
+	} else if(num == 1)
+	{
+		img_name += normal_suffix;
+	} else if(num == 2)
+	{
+		img_name += disp_suffix;
+	}
+	std::vector<unsigned char> floor = generateImage(img_name, cubeWidth, cubeHeight);
+
 
 	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeTexId[num]);
-	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &posX[0]);
-	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &negX[0]);
-	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &posY[0]);
-	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &negY[0]);
-	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &posZ[0]);
-	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &negZ[0]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &cube_left_img[0]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &cube_right_img[0]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &cube_top_img[0]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &floor[0]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &cube_back_img[0]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &cube_front_img[0]);
 
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -650,9 +676,9 @@ void createSceneBox()
 	glBindVertexArray(0);
 
 	glGenTextures(3, cubeTexId);
-	loadCubeTextures(0, "bricks2.png");
-	loadCubeTextures(1, "bricks2_normal.png");
-	loadCubeTextures(2, "bricks2_disp.png");
+	loadCubeTextures(0);
+	loadCubeTextures(1);
+	loadCubeTextures(2);
 }
 
 

@@ -22,25 +22,29 @@ vec3 getParallaxCoors(vec3 texCoor, vec3 viewDir){
 }
 
 void main() {
-	vec3 viewDir = normalize(tangentViewPos - tangentFragPos);
-	vec3 parallaxCoor = getParallaxCoors(texCoor, viewDir);
+	if(texCoor.y == -10){
+		vec3 viewDir = normalize(tangentViewPos - tangentFragPos);
+		vec3 parallaxCoor = getParallaxCoors(texCoor, viewDir);
 
-	vec3 normal = texture(normalMap, parallaxCoor).rgb;
-	normal = normalize(normal * 2 - 1);
+		vec3 normal = texture(normalMap, parallaxCoor).rgb;
+		normal = normalize(normal * 2 - 1);
 
-	vec3 texColor = texture(diffuseMap, texCoor).rgb;
-	vec3 ambient = 0.1 * texColor;
+		vec3 texColor = texture(diffuseMap, texCoor).rgb;
+		vec3 ambient = 0.1 * texColor;
 
-	vec3 lightDir = normalize(tangentLightPos - tangentFragPos);
-	float diff = max(dot(lightDir, normal), 0.0);
-	vec3 diffuse =  diff * texColor;
+		vec3 lightDir = normalize(tangentLightPos - tangentFragPos);
+		float diff = max(dot(lightDir, normal), 0.0);
+		vec3 diffuse =  diff * texColor;
 
 
-	vec3 reflectDir = reflect(-lightDir, normal);
-	vec3 halfwayDir = normalize(lightDir + viewDir);
-	float specVal = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
-	vec3 specular = vec3(0.2) * specVal;
+		vec3 reflectDir = reflect(-lightDir, normal);
+		vec3 halfwayDir = normalize(lightDir + viewDir);
+		float specVal = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
+		vec3 specular = vec3(0.2) * specVal;
 
-	color = vec4(ambient + diffuse + specular, 1.0f);
+		color = vec4(ambient + diffuse + specular, 1.0f);
+	} else {
+		color = texture(diffuseMap, texCoor);
+	}
 
 }

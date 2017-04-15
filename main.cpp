@@ -33,9 +33,11 @@ cyPoint3f lookAt = cyPoint3f(0, -3, 0);
 
 GLuint vertexArrayObj;
 GLuint cubeVertexArrayObj;
+GLuint houseVertexArrayObj;
 
 cy::GLSLProgram teapot_shaders;
 cy::GLSLProgram cube_shaders;
+cy::GLSLProgram house_shaders;
 
 cy::Matrix4<float> cameraTransformationMatrix;
 cy::Matrix4<float> lightCameraTransformationMatrix;
@@ -52,16 +54,18 @@ int selectedKey;
 std::vector<cyPoint3f> vertices;
 
 std::vector<cyPoint3f> cube_vertices;
-std::vector<cyPoint3f> cube_normals;
-std::vector<cyPoint3f> cube_texture_vertices;
 std::vector<unsigned char> cube_front_img;
 std::vector<unsigned char> cube_back_img;
 std::vector<unsigned char> cube_left_img;
 std::vector<unsigned char> cube_right_img;
 std::vector<unsigned char> cube_top_img;
 
+std::vector<cyPoint3f> house_vertices;
+std::vector<cyPoint3f> house_locations;
+
 GLuint textureID[3];
 GLuint cubeTexId[3];
+GLuint houseTexId[3];
 
 unsigned diffWidth, diffHeight, specHeight, specWidth;
 unsigned cubeWidth, cubeHeight;
@@ -106,18 +110,32 @@ void display() {
 	glDrawArrays(GL_TRIANGLES, 0, cube_vertices.size());
 	glDepthMask(true);
 
-	teapot_shaders.Bind();
+//	teapot_shaders.Bind();
+//	glActiveTexture(GL_TEXTURE0);
+//	glBindTexture(GL_TEXTURE_2D, textureID[0]);
+//	glUniform1i(glGetUniformLocation(teapot_shaders.GetID(), "diffuseMap"), 0);
+//	glActiveTexture(GL_TEXTURE1);
+//	glBindTexture(GL_TEXTURE_2D, textureID[1]);
+//	glUniform1i(glGetUniformLocation(teapot_shaders.GetID(), "normalMap"), 1);
+//	glActiveTexture(GL_TEXTURE2);
+//	glBindTexture(GL_TEXTURE_2D, textureID[2]);
+//	glUniform1i(glGetUniformLocation(teapot_shaders.GetID(), "depthMap"), 2);
+//	glBindVertexArray(vertexArrayObj);
+//	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+
+	house_shaders.Bind();
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, textureID[0]);
-	glUniform1i(glGetUniformLocation(teapot_shaders.GetID(), "diffuseMap"), 0);
+	glBindTexture(GL_TEXTURE_2D, houseTexId[0]);
+	glUniform1i(glGetUniformLocation(house_shaders.GetID(), "diffuseMap"), 0);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, textureID[1]);
-	glUniform1i(glGetUniformLocation(teapot_shaders.GetID(), "normalMap"), 1);
+	glBindTexture(GL_TEXTURE_2D, houseTexId[1]);
+	glUniform1i(glGetUniformLocation(house_shaders.GetID(), "normalMap"), 1);
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, textureID[2]);
-	glUniform1i(glGetUniformLocation(teapot_shaders.GetID(), "depthMap"), 2);
-	glBindVertexArray(vertexArrayObj);
-	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+	glBindTexture(GL_TEXTURE_2D, houseTexId[2]);
+	glUniform1i(glGetUniformLocation(house_shaders.GetID(), "depthMap"), 2);
+	glBindVertexArray(houseVertexArrayObj);
+	glDrawArraysInstanced(GL_TRIANGLES, 0, house_vertices.size(), house_locations.size());
+
 
 	glutSwapBuffers();
 }
@@ -440,8 +458,7 @@ void loadCubeTextures(int num) {
 
 }
 
-void populateCubeVertices(cyTriMesh box) {
-	cube_vertices = {};
+void populateCubeVertices(cyTriMesh box, std::vector<cyPoint3f> &cube_vertices, std::vector<cyPoint3f> &cube_normals) {
 	for (int i = 0; i < box.NF(); i = i + 1) {
 		cy::TriMesh::TriFace face = box.F(i);
 		cube_vertices.push_back(box.V(face.v[0]));
@@ -477,7 +494,9 @@ void createSceneBox()
 	cube_shaders.RegisterUniform(5, "cameraPos");
 	cube_shaders.SetUniform(5, cameraPos);
 
-	populateCubeVertices(box);
+	std::vector<cyPoint3f> cube_normals;
+
+	populateCubeVertices(box, cube_vertices, cube_normals);
 
 	GLuint vertexBufferObj[2];
 	GLuint vertexTangentObj[1];
@@ -523,6 +542,89 @@ void createSceneBox()
 	loadCubeTextures(2);
 }
 
+void createHouses()
+{
+	cyTriMesh box = cyTriMesh();
+	box.LoadFromFileObj("house_bottom.obj");
+	box.ComputeBoundingBox();
+	box.ComputeNormals();
+
+	cyMatrix4f houseTranslationMatrix = cyMatrix4f::MatrixTrans(cyPoint3f(0, 0, 0));
+	
+	house_shaders = cy::GLSLProgram();
+	house_shaders.BuildFiles("house_vertex_shader.glsl", "house_fragment_shader.glsl");
+	house_shaders.Bind();
+	house_shaders.RegisterUniform(1, "cameraTransformation");
+	house_shaders.SetUniform(1, houseTranslationMatrix * totalRotationMatrix);
+	house_shaders.RegisterUniform(2, "perspective");
+	house_shaders.SetUniform(2, perspectiveMatrix);
+	house_shaders.RegisterUniform(3, "view");
+	house_shaders.SetUniform(3, view);
+	house_shaders.RegisterUniform(4, "lightPos");
+	house_shaders.SetUniform(4, lightPos);
+	house_shaders.RegisterUniform(5, "cameraPos");
+	house_shaders.SetUniform(5, cameraPos);
+
+
+	house_locations = { cyPoint3f(-6, -6, -3) , cyPoint3f(8, -6, -3),cyPoint3f(-5, -8, -1), cyPoint3f(5, -7, 3) 
+	};
+
+	for (GLuint i = 0; i < house_locations.size(); i++)
+	{
+		std::stringstream ss;
+		std::string index;
+		ss << i;
+		index = ss.str();
+		GLint location = glGetUniformLocation(house_shaders.GetID(), ("offsets[" + index + "]").c_str());
+		glUniform3f(location, house_locations[i].x, house_locations[i].y, house_locations[i].z);
+	}
+
+	std::vector<cyPoint3f> house_normals;
+
+	populateCubeVertices(box, house_vertices, house_normals);
+
+	GLuint vertexBufferObj[2];
+	GLuint vertexTangentObj[1];
+	GLuint vertexBitangentObj[1];
+	GLuint instanceVertexBufferObj[1];
+
+	glGenVertexArrays(1, &houseVertexArrayObj);
+	glBindVertexArray(houseVertexArrayObj);
+
+	glGenBuffers(1, vertexBufferObj);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * house_vertices.size(), &house_vertices[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * house_normals.size(), &house_normals[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	std::vector<cyPoint3f> tangents;
+	std::vector<cyPoint3f> bitangents;
+
+	calculateTangents(house_vertices, house_vertices, tangents, bitangents);
+
+	glGenBuffers(1, vertexTangentObj);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexTangentObj[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * tangents.size(), &tangents[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	glGenBuffers(1, vertexBitangentObj);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBitangentObj[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * bitangents.size(), &bitangents[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(3);
+	glVertexAttribPointer(3, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	glBindVertexArray(0);
+
+	glGenTextures(3, houseTexId);
+	loadTextures(houseTexId, "stone");
+}
 
 int main(int argc, char* argv[])
 {
@@ -543,6 +645,7 @@ int main(int argc, char* argv[])
 	float fov = fov_degrees * (M_PI / 180.0f);
 	perspectiveMatrix = cyMatrix4f::MatrixPerspective(fov, 1.0f, 0.1f, far_plane);
 	createFountain();
+	createHouses();
 	createSceneBox();
 
 	glEnable(GL_DEPTH_TEST);

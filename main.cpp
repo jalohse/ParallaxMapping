@@ -26,57 +26,30 @@
 #define normal_suffix "_NRM.png"
 #define spec_suffix "_SPEC.png"
 
-std::vector<cyPoint3f> plane_vertices = {
-	cyPoint3f(-1.5f, -1.5f, 0.0f),
-	cyPoint3f(1.5f, -1.5f, 0.0f),
-	cyPoint3f(-1.5f, 1.5f, 0.0f),
-	cyPoint3f(-1.5f, 1.5f, 0.0f),
-	cyPoint3f(1.5f, -1.5f, 0.0f),
-	cyPoint3f(1.5f, 1.5f, 0.0f)
-};
-
-std::vector<cyPoint3f> planeTextureVertices = {
-	cyPoint3f(0, 0, 0),
-	cyPoint3f(1, 0, 0),
-	cyPoint3f(0, 1, 0),
-	cyPoint3f(0, 1, 0),
-	cyPoint3f(1, 0, 0),
-	cyPoint3f(1, 1, 0)
-};
-
-cy::Matrix4<float> totalPlaneRotationMatrix = cyMatrix4f::MatrixIdentity();
 cyPoint3f lightPos = cyPoint3f(18, 60, 20);
 cyPoint3f cameraPos = cyPoint3f(0, -3, 5);
 cyPoint3f upVec = cyPoint3f(0, 1, 0);
 cyPoint3f lookAt = cyPoint3f(0, -3, 0);
 
 GLuint vertexArrayObj;
-GLuint planeVertexArrayObj;
 GLuint cubeVertexArrayObj;
-GLuint depthVertexArrayObj;
 
 cy::GLSLProgram teapot_shaders;
-cy::GLSLProgram plane_shaders;
 cy::GLSLProgram cube_shaders;
 
 cy::Matrix4<float> cameraTransformationMatrix;
-cy::Matrix4<float> planeCameraTransformationMatrix;
 cy::Matrix4<float> lightCameraTransformationMatrix;
 cy::Matrix4<float> perspectiveMatrix;
 cy::Matrix4<float> totalRotationMatrix;
 cy::Matrix4<float> translationMatrix;
 cy::Matrix4<float> cubeTranslationMatrix;
-cy::Matrix4<float> planeTransformationMatrix;
 cy::Matrix4<float> lightTransformationMatrix;
 cy::Matrix4<float> lightRotationMatrix;
-cyMatrix4f teapotLightMVP;
-cyMatrix4f planeLightMVP;
 
 int selected;
 int selectedKey;
 
 std::vector<cyPoint3f> vertices;
-std::vector<cyPoint3f> lightVertices;
 
 std::vector<cyPoint3f> cube_vertices;
 std::vector<cyPoint3f> cube_normals;
@@ -95,8 +68,6 @@ unsigned cubeWidth, cubeHeight;
 
 cyMatrix4f view = cyMatrix4f::MatrixView(cameraPos, lookAt, upVec);
 cyMatrix4f lightView = cyMatrix4f::MatrixView(lightPos, lookAt, upVec);
-cyMatrix4f lightProj = cyMatrix4f::MatrixPerspective(M_PI / 8, 1, 20, 200);
-cyMatrix4f bias = cyMatrix4f::MatrixTrans(cyPoint3f(0.5f, 0.5f, 0.495f)) * cyMatrix4f::MatrixScale(0.5f, 0.5f, 0.5f);
 bool zoom_in = true;
 int movement = 0;
 
@@ -111,11 +82,8 @@ void setInitialRotationAndTranslation() {
 
 	totalRotationMatrix = rotationX * rotationZ;
 	cameraTransformationMatrix = translationMatrix * totalRotationMatrix;
-	planeCameraTransformationMatrix = cyMatrix4f::MatrixTrans(cyPoint3f(0, -7, -10));
 
 	lightRotationMatrix = cyMatrix4f::MatrixRotationX(0);
-	teapotLightMVP = lightProj * lightView * cameraTransformationMatrix;
-	planeLightMVP = lightProj * lightView * planeCameraTransformationMatrix;
 }
 
 void display() {
@@ -155,20 +123,6 @@ void display() {
 }
 
 
-void zoomPlane() {
-	plane_shaders.Bind();
-	int data = planeTransformationMatrix.data[14];
-	cyPoint3f translation = cyPoint3f(0.0f, 0.0f, 0.05f);
-	if (data > -25 || !zoom_in) {
-		zoom_in = false;
-		translation = cyPoint3f(0.0f, 0.0f, -0.05f);
-	}
-	planeTransformationMatrix = cyMatrix4f::MatrixTrans(translation) * planeTransformationMatrix;
-	planeCameraTransformationMatrix = planeTransformationMatrix * totalPlaneRotationMatrix;
-	plane_shaders.SetUniform(1, planeCameraTransformationMatrix);
-	glutPostRedisplay();
-}
-
 void zoom() {
 	teapot_shaders.Bind();
 	int data = translationMatrix.data[14];
@@ -187,38 +141,13 @@ void zoom() {
 	glutPostRedisplay();
 }
 
-void rotatePlane() {
-	plane_shaders.Bind();
-	totalPlaneRotationMatrix = cyMatrix4f::MatrixRotationX(0.1) * totalPlaneRotationMatrix;
-	planeCameraTransformationMatrix = planeTransformationMatrix * totalPlaneRotationMatrix;
-	plane_shaders.SetUniform(1, planeCameraTransformationMatrix);
-	glutPostRedisplay();
-}
-
 void rotate() {
 	totalRotationMatrix = cyMatrix4f::MatrixRotationY(0.5) * totalRotationMatrix;
-	cameraTransformationMatrix = translationMatrix * totalRotationMatrix;
-	teapot_shaders.Bind();
-	teapot_shaders.SetUniform(1, cameraTransformationMatrix);
-	teapot_shaders.SetUniform(3, cameraTransformationMatrix.GetInverse().GetTranspose());
 	cube_shaders.Bind();
 	cube_shaders.SetUniform(1, cubeTranslationMatrix * totalRotationMatrix);
 	glutPostRedisplay();
 }
 
-
-void updateLightPosition() {
-	lightView = cyMatrix4f::MatrixView(lightPos, cyPoint3f(0, 0, 0), cyPoint3f(0, 1, 0));
-	teapotLightMVP = lightProj * lightView * cameraTransformationMatrix;
-	planeLightMVP = lightProj * lightView * planeCameraTransformationMatrix;
-	teapot_shaders.Bind();
-	teapot_shaders.SetUniform(6, bias * teapotLightMVP);
-	teapot_shaders.SetUniform(7, lightPos);
-	plane_shaders.Bind();
-	plane_shaders.SetUniform(3, bias * planeLightMVP);
-	lightTransformationMatrix = cyMatrix4f::MatrixTrans(lightPos);
-	lightCameraTransformationMatrix = lightTransformationMatrix * cyMatrix4f::MatrixRotationY(-10);
-}
 
 void moveLight() {
 	if (movement != 10) {
@@ -229,7 +158,8 @@ void moveLight() {
 		lightPos = cyPoint3f(lightPos.x - 2, lightPos.y, lightPos.z + 1);
 	}
 
-	updateLightPosition();
+	teapot_shaders.Bind();
+	teapot_shaders.SetUniform(4, lightPos);
 	glutPostRedisplay();
 }
 
@@ -239,27 +169,6 @@ void onClick(int button, int state, int x, int y) {
 	if (mod == GLUT_ACTIVE_CTRL) {
 		selectedKey = mod;
 		moveLight();
-	}
-	else if (mod == GLUT_ACTIVE_ALT) {
-		selectedKey = mod;
-		if (button == GLUT_RIGHT_BUTTON) {
-			if (state == GLUT_DOWN) {
-				selected = GLUT_RIGHT_BUTTON;
-				zoomPlane();
-			}
-			else {
-				selected = NULL;
-			}
-		}
-		else if (button == GLUT_LEFT_BUTTON) {
-			if (state == GLUT_DOWN) {
-				selected = GLUT_LEFT_BUTTON;
-				rotatePlane();
-			}
-			else {
-				selected = NULL;
-			}
-		}
 	}
 	else if (button == GLUT_RIGHT_BUTTON) {
 		if (state == GLUT_DOWN) {
@@ -284,12 +193,6 @@ void onClick(int button, int state, int x, int y) {
 void move(int x, int y) {
 	if (selectedKey == GLUT_ACTIVE_CTRL) {
 		moveLight();
-	}
-	else if (selectedKey == GLUT_ACTIVE_ALT && selected == GLUT_RIGHT_BUTTON) {
-		zoomPlane();
-	}
-	else if (selectedKey == GLUT_ACTIVE_ALT && selected == GLUT_LEFT_BUTTON) {
-		rotatePlane();
 	}
 	else if (selected == GLUT_RIGHT_BUTTON) {
 		zoom();
@@ -485,75 +388,6 @@ void createFountain() {
 	glGenTextures(3, textureID);
 	loadTextures(textureID, "stone");
 }
-
-
-void createPlane() {
-	planeTransformationMatrix = cyMatrix4f::MatrixTrans(cyPoint3f(0, 0, 0));
-	planeCameraTransformationMatrix = planeTransformationMatrix * cyMatrix4f::MatrixRotationX(80);
-	cyPoint3f normal = plane_vertices.at(0).Cross(plane_vertices.at(1)).GetNormalized();
-
-	plane_shaders = cy::GLSLProgram();
-	plane_shaders.BuildFiles("plane_vertex_shader.glsl", "plane_fragment_shader.glsl");
-	plane_shaders.Bind();
-	plane_shaders.RegisterUniform(1, "cameraTransformation");
-	plane_shaders.SetUniform(1, planeCameraTransformationMatrix);
-	plane_shaders.RegisterUniform(2, "perspective");
-	plane_shaders.SetUniform(2, perspectiveMatrix);
-	plane_shaders.RegisterUniform(3, "normal");
-	plane_shaders.SetUniform(3, normal);
-	plane_shaders.RegisterUniform(4, "view");
-	plane_shaders.SetUniform(4, view);
-	plane_shaders.RegisterUniform(5, "lightPos");
-	plane_shaders.SetUniform(5, lightPos);
-	plane_shaders.RegisterUniform(6, "cameraPos");
-	plane_shaders.SetUniform(6, cameraPos);
-
-	glGenTextures(3, textureID);
-
-	GLuint planeVertexBufferObj[1];
-	GLuint planeTextureBufferObj[1];
-	GLuint planeTangentBufferObj[1];
-	GLuint planeBitangentBufferObj[1];
-
-	glGenVertexArrays(1, &planeVertexArrayObj);
-	glBindVertexArray(planeVertexArrayObj);
-
-	glGenBuffers(1, planeVertexBufferObj);
-	glBindBuffer(GL_ARRAY_BUFFER, planeVertexBufferObj[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * plane_vertices.size(), &plane_vertices[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
-
-
-	glGenBuffers(1, planeTextureBufferObj);
-	glBindBuffer(GL_ARRAY_BUFFER, planeTextureBufferObj[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * planeTextureVertices.size(), &planeTextureVertices[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
-
-	std::vector<cyPoint3f> tangentsBitangents = calculateTangentsOfPlane(plane_vertices, planeTextureVertices);
-
-	cyPoint3f tangent = tangentsBitangents.at(0);
-	std::vector<cyPoint3f> tangents = { tangent, tangent, tangent, tangent, tangent, tangent };
-
-	glGenBuffers(1, planeTangentBufferObj);
-	glBindBuffer(GL_ARRAY_BUFFER, planeTangentBufferObj[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * tangents.size(), &tangents[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
-
-	cyPoint3f bitangent = tangentsBitangents.at(1);
-	std::vector<cyPoint3f> bitangents = { bitangent, bitangent, bitangent, bitangent, bitangent, bitangent };
-
-	glGenBuffers(1, planeBitangentBufferObj);
-	glBindBuffer(GL_ARRAY_BUFFER, planeBitangentBufferObj[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * tangents.size(), &bitangents[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(3);
-	glVertexAttribPointer(3, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
-
-	glBindVertexArray(0);
-}
-
 
 void loadCubeTextures(int num) {
 	if(cube_front_img.empty())

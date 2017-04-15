@@ -42,5 +42,6 @@ void main() {
 	vec3 specular = vec3(0.2) * specVal;
 
 	color = vec4(ambient + diffuse + specular, 1.0f);
+	color = texture(diffuseMap, texCoor);
 
 }

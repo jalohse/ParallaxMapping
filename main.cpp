@@ -26,7 +26,7 @@
 #define normal_suffix "_NRM.png"
 #define spec_suffix "_SPEC.png"
 
-cyPoint3f lightPos = cyPoint3f(18, 60, 20);
+cyPoint3f lightPos = cyPoint3f(12, -5,9);
 cyPoint3f cameraPos = cyPoint3f(0, -3, 5);
 cyPoint3f upVec = cyPoint3f(0, 1, 0);
 cyPoint3f lookAt = cyPoint3f(0, -3, 0);
@@ -78,7 +78,7 @@ unsigned diffWidth, diffHeight, specHeight, specWidth;
 unsigned cubeWidth, cubeHeight;
 
 cyMatrix4f view = cyMatrix4f::MatrixView(cameraPos, lookAt, upVec);
-cyMatrix4f lightView = cyMatrix4f::MatrixView(lightPos, lookAt, upVec);
+cyMatrix4f lightView = cyMatrix4f::MatrixView(lightPos, cyPoint3f(0,3,0), upVec);
 bool zoom_in = true;
 int movement = 0;
 
@@ -197,14 +197,22 @@ void rotate() {
 }
 
 
-void moveLight() {
-	if (movement != 10) {
-		lightPos = cyPoint3f(lightPos.x + 2, lightPos.y, lightPos.z - 1);
-		movement = movement + 1;
+void moveLight(int button) {
+	if (button == GLUT_KEY_UP) {
+		lightPos = cyPoint3f(lightPos.x, lightPos.y + 1, lightPos.z);
+	} else if (button == GLUT_KEY_DOWN) {
+		lightPos = cyPoint3f(lightPos.x, lightPos.y - 1, lightPos.z);
+	} else if (button == GLUT_KEY_LEFT) {
+		lightPos = cyPoint3f(lightPos.x + 1, lightPos.y, lightPos.z);
 	}
-	else {
-		lightPos = cyPoint3f(lightPos.x - 2, lightPos.y, lightPos.z + 1);
+	else if (button == GLUT_KEY_RIGHT) {
+		lightPos = cyPoint3f(lightPos.x - 1, lightPos.y, lightPos.z);
 	}
+
+	std::cout << lightPos.x;
+	std::cout << lightPos.y;
+	std::cout << lightPos.z << std::endl;
+
 
 	teapot_shaders.Bind();
 	teapot_shaders.SetUniform(4, lightPos);
@@ -222,7 +230,7 @@ void onClick(int button, int state, int x, int y) {
 	int mod = glutGetModifiers();
 	if (mod == GLUT_ACTIVE_CTRL) {
 		selectedKey = mod;
-		moveLight();
+		moveLight(button);
 	}
 	else if (button == GLUT_RIGHT_BUTTON) {
 		if (state == GLUT_DOWN) {
@@ -244,17 +252,17 @@ void onClick(int button, int state, int x, int y) {
 	}
 }
 
-void move(int x, int y) {
-	if (selectedKey == GLUT_ACTIVE_CTRL) {
-		moveLight();
-	}
-	else if (selected == GLUT_RIGHT_BUTTON) {
-		zoom();
-	}
-	else if (selected == GLUT_LEFT_BUTTON) {
-		rotate();
-	}
-}
+//void move(int x, int y) {
+//	if (selectedKey == GLUT_ACTIVE_CTRL) {
+//		moveLight();
+//	}
+//	else if (selected == GLUT_RIGHT_BUTTON) {
+//		zoom();
+//	}
+//	else if (selected == GLUT_LEFT_BUTTON) {
+//		rotate();
+//	}
+//}
 
 
 void reset(int key, int x, int y) {
@@ -264,6 +272,9 @@ void reset(int key, int x, int y) {
 		teapot_shaders.SetUniform(1, cameraTransformationMatrix);
 		teapot_shaders.SetUniform(3, cameraTransformationMatrix.GetInverse().GetTranspose());
 		glutPostRedisplay();
+	} else
+	{
+		moveLight(key);
 	}
 }
 
@@ -811,7 +822,7 @@ int main(int argc, char* argv[])
 
 	glutDisplayFunc(display);
 	glutMouseFunc(onClick);
-	glutMotionFunc(move);
+	//glutMotionFunc(move);
 	glutSpecialFunc(reset);
 
 	glutMainLoop();

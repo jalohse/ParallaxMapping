@@ -34,10 +34,12 @@ cyPoint3f lookAt = cyPoint3f(0, -3, 0);
 GLuint vertexArrayObj;
 GLuint cubeVertexArrayObj;
 GLuint houseVertexArrayObj;
+GLuint roofVertexArrayObj;
 
 cy::GLSLProgram teapot_shaders;
 cy::GLSLProgram cube_shaders;
 cy::GLSLProgram house_shaders;
+cy::GLSLProgram roof_shaders;
 
 cy::Matrix4<float> cameraTransformationMatrix;
 cy::Matrix4<float> lightCameraTransformationMatrix;
@@ -63,11 +65,14 @@ std::vector<unsigned char> cube_top_img;
 
 cyMatrix4f houseTranslationMatrix = cyMatrix4f::MatrixTrans(cyPoint3f(0, 0, 0));
 std::vector<cyPoint3f> house_vertices;
+std::vector<cyPoint3f> roof_vertices;
 std::vector<cyPoint3f> house_locations;
+std::vector<cyPoint3f> roof_locations;
 
 GLuint textureID[3];
 GLuint cubeTexId[3];
 GLuint house_tex_id[3];
+GLuint roof_tex_id[3];
 
 unsigned diffWidth, diffHeight, specHeight, specWidth;
 unsigned cubeWidth, cubeHeight;
@@ -138,6 +143,19 @@ void display() {
 	glBindVertexArray(houseVertexArrayObj);
 	glDrawArraysInstanced(GL_TRIANGLES, 0, house_vertices.size(), house_locations.size());
 
+	roof_shaders.Bind();
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, roof_tex_id[0]);
+	glUniform1i(glGetUniformLocation(roof_shaders.GetID(), "diffuseMap"), 0);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, roof_tex_id[1]);
+	glUniform1i(glGetUniformLocation(roof_shaders.GetID(), "normalMap"), 1);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, roof_tex_id[2]);
+	glUniform1i(glGetUniformLocation(roof_shaders.GetID(), "depthMap"), 2);
+	glBindVertexArray(roofVertexArrayObj);
+	glDrawArraysInstanced(GL_TRIANGLES, 0, roof_vertices.size(), roof_locations.size());
+
 
 	glutSwapBuffers();
 }
@@ -162,6 +180,8 @@ void zoom() {
 	cube_shaders.SetUniform(1, cubeTranslationMatrix * totalRotationMatrix);
 	house_shaders.Bind();
 	house_shaders.SetUniform(1, houseTranslationMatrix * totalRotationMatrix);
+	roof_shaders.Bind();
+	roof_shaders.SetUniform(1, houseTranslationMatrix * totalRotationMatrix);
 	glutPostRedisplay();
 }
 
@@ -171,6 +191,8 @@ void rotate() {
 	cube_shaders.SetUniform(1, cubeTranslationMatrix * totalRotationMatrix);
 	house_shaders.Bind();
 	house_shaders.SetUniform(1, houseTranslationMatrix * totalRotationMatrix);
+	roof_shaders.Bind();
+	roof_shaders.SetUniform(1, houseTranslationMatrix * totalRotationMatrix);
 	glutPostRedisplay();
 }
 
@@ -324,7 +346,7 @@ void loadTextures(GLuint id[], std::string img_name) {
 
 }
 
-void populateVerticesAndNormals(cyTriMesh mesh, std::vector<cyPoint3f> &normals, std::vector<cyPoint3f> &textureVertices) {
+void populateVerticesNormalsTextures(cyTriMesh mesh, std::vector<cyPoint3f> &vertices, std::vector<cyPoint3f> &normals, std::vector<cyPoint3f> &textureVertices) {
 	
 	for (int i = 0; i < mesh.NF(); i = i + 1) {
 		cy::TriMesh::TriFace face = mesh.F(i);
@@ -352,7 +374,7 @@ void createFountain() {
 	std::vector<cyPoint3f> normals;
 	std::vector<cyPoint3f> textureVertices;
 
-	populateVerticesAndNormals(mesh, normals, textureVertices);
+	populateVerticesNormalsTextures(mesh, vertices, normals, textureVertices);
 	setInitialRotationAndTranslation();
 
 	teapot_shaders = cy::GLSLProgram();
@@ -470,7 +492,7 @@ void loadCubeTextures(int num) {
 
 }
 
-void populateCubeVertices(cyTriMesh box, std::vector<cyPoint3f> &cube_vertices, std::vector<cyPoint3f> &cube_normals) {
+void populateVerticesNormals(cyTriMesh box, std::vector<cyPoint3f> &cube_vertices, std::vector<cyPoint3f> &cube_normals) {
 	for (int i = 0; i < box.NF(); i = i + 1) {
 		cy::TriMesh::TriFace face = box.F(i);
 		cube_vertices.push_back(box.V(face.v[0]));
@@ -508,7 +530,7 @@ void createSceneBox()
 
 	std::vector<cyPoint3f> cube_normals;
 
-	populateCubeVertices(box, cube_vertices, cube_normals);
+	populateVerticesNormals(box, cube_vertices, cube_normals);
 
 	GLuint vertexBufferObj[2];
 	GLuint vertexTangentObj[1];
@@ -612,7 +634,7 @@ void createHouses()
 	house_shaders.SetUniform(5, cameraPos);
 
 
-	house_locations = { cyPoint3f(-6, -6, -3) , cyPoint3f(8, -6, -3),cyPoint3f(-5, -8, -1), cyPoint3f(5, -7, 3) };
+	house_locations = { cyPoint3f(-8, -6, -3) , cyPoint3f(8, -6, -3),cyPoint3f(-8, -8, 0), cyPoint3f(8, -7, 3) };
 
 	for (GLuint i = 0; i < house_locations.size(); i++)
 	{
@@ -626,7 +648,7 @@ void createHouses()
 
 	std::vector<cyPoint3f> house_normals;
 
-	populateCubeVertices(box, house_vertices, house_normals);
+	populateVerticesNormals(box, house_vertices, house_normals);
 
 	GLuint vertexBufferObj[2];
 	GLuint vertexTangentObj[1];
@@ -641,11 +663,6 @@ void createHouses()
 	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * house_vertices.size(), &house_vertices[0], GL_STATIC_DRAW);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
-
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj[1]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * house_normals.size(), &house_normals[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj[1]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * house_normals.size(), &house_normals[0], GL_STATIC_DRAW);
@@ -678,6 +695,92 @@ void createHouses()
 
 }
 
+void createRoofs()
+{
+	cyTriMesh roof = cyTriMesh();
+	roof.LoadFromFileObj("house_top.obj");
+	roof.ComputeBoundingBox();
+	roof.ComputeNormals();
+
+	roof_shaders = cy::GLSLProgram();
+	roof_shaders.BuildFiles("roof_vertex_shader.glsl", "roof_fragment_shader.glsl");
+	roof_shaders.Bind();
+	roof_shaders.RegisterUniform(1, "cameraTransformation");
+	roof_shaders.SetUniform(1, houseTranslationMatrix * totalRotationMatrix);
+	roof_shaders.RegisterUniform(2, "perspective");
+	roof_shaders.SetUniform(2, perspectiveMatrix);
+	roof_shaders.RegisterUniform(3, "view");
+	roof_shaders.SetUniform(3, view);
+	roof_shaders.RegisterUniform(4, "lightPos");
+	roof_shaders.SetUniform(4, lightPos);
+	roof_shaders.RegisterUniform(5, "cameraPos");
+	roof_shaders.SetUniform(5, cameraPos);
+
+	roof_locations = { cyPoint3f(-8, -6, -3) , cyPoint3f(8, -6, -3),cyPoint3f(-8, -8, 0), cyPoint3f(8, -7, 3) };
+
+	for (GLuint i = 0; i < roof_locations.size(); i++)
+	{
+		std::stringstream ss;
+		std::string index;
+		ss << i;
+		index = ss.str();
+		GLint location = glGetUniformLocation(roof_shaders.GetID(), ("offsets[" + index + "]").c_str());
+		glUniform3f(location, roof_locations[i].x, roof_locations[i].y, roof_locations[i].z);
+	}
+
+	std::vector<cyPoint3f> roof_normals;
+	std::vector<cyPoint3f> roof_tex;
+
+	populateVerticesNormalsTextures(roof, roof_vertices, roof_normals, roof_tex);
+
+	GLuint vertexBufferObj[2];
+	GLuint vertexTexObj[1];
+	GLuint vertexTangentObj[1];
+	GLuint vertexBitangentObj[1];
+
+	glGenVertexArrays(1, &roofVertexArrayObj);
+	glBindVertexArray(roofVertexArrayObj);
+
+	glGenBuffers(1, vertexBufferObj);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * roof_vertices.size(), &roof_vertices[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * roof_normals.size(), &roof_normals[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vertexTexObj[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * roof_tex.size(), &roof_tex[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	std::vector<cyPoint3f> tangents;
+	std::vector<cyPoint3f> bitangents;
+
+	calculateTangents(roof_vertices, house_vertices, tangents, bitangents);
+
+	glGenBuffers(1, vertexTangentObj);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexTangentObj[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * tangents.size(), &tangents[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(3);
+	glVertexAttribPointer(3, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	glGenBuffers(1, vertexBitangentObj);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBitangentObj[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * bitangents.size(), &bitangents[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(4);
+	glVertexAttribPointer(4, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	glBindVertexArray(0);
+
+	glGenTextures(3, roof_tex_id);
+	loadTextures(roof_tex_id, "roof");
+}
+
 int main(int argc, char* argv[])
 {
 
@@ -698,6 +801,7 @@ int main(int argc, char* argv[])
 	perspectiveMatrix = cyMatrix4f::MatrixPerspective(fov, 1.0f, 0.1f, far_plane);
 	createFountain();
 	createHouses();
+	createRoofs();
 	createSceneBox();
 
 	glEnable(GL_DEPTH_TEST);

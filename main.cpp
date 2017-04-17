@@ -212,6 +212,8 @@ void moveLight() {
 	cube_shaders.SetUniform(4, lightPos);
 	house_shaders.Bind();
 	house_shaders.SetUniform(4, lightPos);
+	roof_shaders.Bind();
+	roof_shaders.SetUniform(4, lightPos);
 	glutPostRedisplay();
 }
 

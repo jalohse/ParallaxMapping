@@ -179,20 +179,14 @@ void display() {
 
 
 void zoom() {
-	stairs_shaders.Bind();
-	int data = translationMatrix.data[14];
-	cyPoint3f translation = cyPoint3f(0.0f, 0.0f, 0.2f);
-	if (data > -8 || !zoom_in) {
-		zoom_in = false;
-		translation = cyPoint3f(0.0f, 0.0f, -1.0f);
-	}
+	cyPoint3f translation = cyPoint3f(0.0f, 0.0f, -0.2f);
 	cyMatrix4f translationMat = cyMatrix4f::MatrixTrans(translation);
 	translationMatrix = translationMat * translationMatrix;
 	cubeTranslationMatrix = translationMat * cubeTranslationMatrix;
 	houseTranslationMatrix = translationMat * houseTranslationMatrix;
 	cameraTransformationMatrix = translationMatrix * totalRotationMatrix;
+	stairs_shaders.Bind();
 	stairs_shaders.SetUniform(1, cameraTransformationMatrix);
-	stairs_shaders.SetUniform(3, cameraTransformationMatrix.GetInverse().GetTranspose());
 	cube_shaders.Bind();
 	cube_shaders.SetUniform(1, cubeTranslationMatrix * totalRotationMatrix);
 	house_shaders.Bind();
@@ -344,30 +338,11 @@ void calculateTangents(std::vector<cyPoint3f> vertices, std::vector<cyPoint3f> t
 	}
 }
 
-std::vector<unsigned char> flipImage(int total, std::vector<unsigned char> imageVector) {
-	std::vector<unsigned char> image(total + 1);
-	for (int i = 0; i <= total; i += 4) {
-		char r = imageVector[total - i - 3];
-		char g = imageVector[total - i - 2];
-		char b = imageVector[total - i - 1];
-		char a = imageVector[total - i];
-		image[i] = r;
-		image[i + 1] = g;
-		image[i + 2] = b;
-		image[i + 3] = a;
-	}
-	return image;
-}
-
-
 std::vector<unsigned char> generateImage(std::string image, unsigned &im_width, unsigned &im_height) {
 	std::vector<unsigned char> diffuseVector;
-	int total;
-		lodepng::decode(diffuseVector, im_width, im_height, image);
-		total = im_height * im_width * 4 - 1;
+	lodepng::decode(diffuseVector, im_width, im_height, image);
 	return diffuseVector;
 }
-
 
 void loadTextures(GLuint id[], std::string img_name) {
 	std::string color_img = img_name + color_suffix;

@@ -36,7 +36,7 @@ GLuint cubeVertexArrayObj;
 GLuint houseVertexArrayObj;
 GLuint roofVertexArrayObj;
 
-cy::GLSLProgram teapot_shaders;
+cy::GLSLProgram stairs_shaders;
 cy::GLSLProgram cube_shaders;
 cy::GLSLProgram house_shaders;
 cy::GLSLProgram roof_shaders;
@@ -82,6 +82,23 @@ cyMatrix4f lightView = cyMatrix4f::MatrixView(lightPos, cyPoint3f(0,3,0), upVec)
 bool zoom_in = true;
 int movement = 0;
 
+std::vector<cyPoint3f> plane_vertices = {
+	cyPoint3f(-6.0f, -10.0f, -12.0f),
+	cyPoint3f(6.0f, -10.0f, -12.0f),
+	cyPoint3f(-2.0f, -3.0f, -15.0f),
+	cyPoint3f(-2.0f, -3.0f, -15.0f),
+	cyPoint3f(6.0f, -10.0f, -12.0f),
+	cyPoint3f(2.0f, -3.0f, -15.0f)
+};
+
+std::vector<cyPoint3f> planeTextureVertices = {
+	cyPoint3f(0, 0, 0),
+	cyPoint3f(1, 0, 0),
+	cyPoint3f(0, 1, 0),
+	cyPoint3f(0, 1, 0),
+	cyPoint3f(1, 0, 0),
+	cyPoint3f(1, 1, 0)
+};
 
 
 
@@ -117,18 +134,18 @@ void display() {
 	glDrawArrays(GL_TRIANGLES, 0, cube_vertices.size());
 	glDepthMask(true);
 
-//	teapot_shaders.Bind();
-//	glActiveTexture(GL_TEXTURE0);
-//	glBindTexture(GL_TEXTURE_2D, textureID[0]);
-//	glUniform1i(glGetUniformLocation(teapot_shaders.GetID(), "diffuseMap"), 0);
-//	glActiveTexture(GL_TEXTURE1);
-//	glBindTexture(GL_TEXTURE_2D, textureID[1]);
-//	glUniform1i(glGetUniformLocation(teapot_shaders.GetID(), "normalMap"), 1);
-//	glActiveTexture(GL_TEXTURE2);
-//	glBindTexture(GL_TEXTURE_2D, textureID[2]);
-//	glUniform1i(glGetUniformLocation(teapot_shaders.GetID(), "depthMap"), 2);
-//	glBindVertexArray(vertexArrayObj);
-//	glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+	stairs_shaders.Bind();
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, textureID[0]);
+	glUniform1i(glGetUniformLocation(stairs_shaders.GetID(), "diffuseMap"), 0);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, textureID[1]);
+	glUniform1i(glGetUniformLocation(stairs_shaders.GetID(), "normalMap"), 1);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, textureID[2]);
+	glUniform1i(glGetUniformLocation(stairs_shaders.GetID(), "depthMap"), 2);
+	glBindVertexArray(vertexArrayObj);
+	glDrawArrays(GL_TRIANGLES, 0, plane_vertices.size());
 
 	house_shaders.Bind();
 	glActiveTexture(GL_TEXTURE0);
@@ -162,7 +179,7 @@ void display() {
 
 
 void zoom() {
-	teapot_shaders.Bind();
+	stairs_shaders.Bind();
 	int data = translationMatrix.data[14];
 	cyPoint3f translation = cyPoint3f(0.0f, 0.0f, 0.2f);
 	if (data > -8 || !zoom_in) {
@@ -174,8 +191,8 @@ void zoom() {
 	cubeTranslationMatrix = translationMat * cubeTranslationMatrix;
 	houseTranslationMatrix = translationMat * houseTranslationMatrix;
 	cameraTransformationMatrix = translationMatrix * totalRotationMatrix;
-	teapot_shaders.SetUniform(1, cameraTransformationMatrix);
-	teapot_shaders.SetUniform(3, cameraTransformationMatrix.GetInverse().GetTranspose());
+	stairs_shaders.SetUniform(1, cameraTransformationMatrix);
+	stairs_shaders.SetUniform(3, cameraTransformationMatrix.GetInverse().GetTranspose());
 	cube_shaders.Bind();
 	cube_shaders.SetUniform(1, cubeTranslationMatrix * totalRotationMatrix);
 	house_shaders.Bind();
@@ -193,6 +210,8 @@ void rotate() {
 	house_shaders.SetUniform(1, houseTranslationMatrix * totalRotationMatrix);
 	roof_shaders.Bind();
 	roof_shaders.SetUniform(1, houseTranslationMatrix * totalRotationMatrix);
+	stairs_shaders.Bind();
+	stairs_shaders.SetUniform(1, translationMatrix * totalRotationMatrix);
 	glutPostRedisplay();
 }
 
@@ -214,8 +233,8 @@ void moveLight(int button) {
 	std::cout << lightPos.z << std::endl;
 
 
-	teapot_shaders.Bind();
-	teapot_shaders.SetUniform(4, lightPos);
+	stairs_shaders.Bind();
+	stairs_shaders.SetUniform(4, lightPos);
 	cube_shaders.Bind();
 	cube_shaders.SetUniform(4, lightPos);
 	house_shaders.Bind();
@@ -268,9 +287,9 @@ void onClick(int button, int state, int x, int y) {
 void reset(int key, int x, int y) {
 	if (key == GLUT_KEY_F6) {
 		setInitialRotationAndTranslation();
-		teapot_shaders.Bind();
-		teapot_shaders.SetUniform(1, cameraTransformationMatrix);
-		teapot_shaders.SetUniform(3, cameraTransformationMatrix.GetInverse().GetTranspose());
+		stairs_shaders.Bind();
+		stairs_shaders.SetUniform(1, cameraTransformationMatrix);
+		stairs_shaders.SetUniform(3, cameraTransformationMatrix.GetInverse().GetTranspose());
 		glutPostRedisplay();
 	} else
 	{
@@ -325,11 +344,30 @@ void calculateTangents(std::vector<cyPoint3f> vertices, std::vector<cyPoint3f> t
 	}
 }
 
+std::vector<unsigned char> flipImage(int total, std::vector<unsigned char> imageVector) {
+	std::vector<unsigned char> image(total + 1);
+	for (int i = 0; i <= total; i += 4) {
+		char r = imageVector[total - i - 3];
+		char g = imageVector[total - i - 2];
+		char b = imageVector[total - i - 1];
+		char a = imageVector[total - i];
+		image[i] = r;
+		image[i + 1] = g;
+		image[i + 2] = b;
+		image[i + 3] = a;
+	}
+	return image;
+}
+
+
 std::vector<unsigned char> generateImage(std::string image, unsigned &im_width, unsigned &im_height) {
 	std::vector<unsigned char> diffuseVector;
-	lodepng::decode(diffuseVector, im_width, im_height, image);
+	int total;
+		lodepng::decode(diffuseVector, im_width, im_height, image);
+		total = im_height * im_width * 4 - 1;
 	return diffuseVector;
 }
+
 
 void loadTextures(GLuint id[], std::string img_name) {
 	std::string color_img = img_name + color_suffix;
@@ -379,30 +417,33 @@ void populateVerticesNormalsTextures(cyTriMesh mesh, std::vector<cyPoint3f> &ver
 
 
 void createFountain() {
-	cyTriMesh mesh = cyTriMesh();
-	mesh.LoadFromFileObj("fountain.obj");
-	mesh.ComputeBoundingBox();
-	mesh.ComputeNormals();
-
-	std::vector<cyPoint3f> normals;
-	std::vector<cyPoint3f> textureVertices;
-
-	populateVerticesNormalsTextures(mesh, vertices, normals, textureVertices);
+//	cyTriMesh mesh = cyTriMesh();
+//	mesh.LoadFromFileObj("fountain_base.obj");
+//	mesh.ComputeBoundingBox();
+//	mesh.ComputeNormals();
+//
+//	std::vector<cyPoint3f> normals;
+//	std::vector<cyPoint3f> textureVertices;
+//
+//	populateVerticesNormalsTextures(mesh, plane_vertices, normals, textureVertices);
 	setInitialRotationAndTranslation();
 
-	teapot_shaders = cy::GLSLProgram();
-	teapot_shaders.BuildFiles("plane_vertex_shader.glsl", "plane_fragment_shader.glsl");
-	teapot_shaders.Bind();
-	teapot_shaders.RegisterUniform(1, "cameraTransformation");
-	teapot_shaders.SetUniform(1, cameraTransformationMatrix);
-	teapot_shaders.RegisterUniform(2, "perspective");
-	teapot_shaders.SetUniform(2, perspectiveMatrix);
-	teapot_shaders.RegisterUniform(3, "view");
-	teapot_shaders.SetUniform(3, view);
-	teapot_shaders.RegisterUniform(4, "lightPos");
-	teapot_shaders.SetUniform(4, lightPos);
-	teapot_shaders.RegisterUniform(5, "cameraPos");
-	teapot_shaders.SetUniform(5, cameraPos);
+	stairs_shaders = cy::GLSLProgram();
+	stairs_shaders.BuildFiles("plane_vertex_shader.glsl", "plane_fragment_shader.glsl");
+	stairs_shaders.Bind();
+	stairs_shaders.RegisterUniform(1, "cameraTransformation");
+	stairs_shaders.SetUniform(1, cameraTransformationMatrix);
+	stairs_shaders.RegisterUniform(2, "perspective");
+	stairs_shaders.SetUniform(2, perspectiveMatrix);
+	stairs_shaders.RegisterUniform(3, "view");
+	stairs_shaders.SetUniform(3, view);
+	stairs_shaders.RegisterUniform(4, "lightPos");
+	stairs_shaders.SetUniform(4, lightPos);
+	stairs_shaders.RegisterUniform(5, "cameraPos");
+	stairs_shaders.SetUniform(5, cameraPos);
+	stairs_shaders.RegisterUniform(6, "normal");
+	cyPoint3f normal = plane_vertices.at(0).Cross(plane_vertices.at(1)).GetNormalized();
+	stairs_shaders.SetUniform(6, normal);
 
 	GLuint vertexBufferObj[2];
 	GLuint textureVertexBufferObj[1];
@@ -416,42 +457,37 @@ void createFountain() {
 	glGenBuffers(1, vertexBufferObj);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * plane_vertices.size(), &plane_vertices[0], GL_STATIC_DRAW);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
 
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj[1]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * normals.size(), &normals[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
-
 	glGenBuffers(1, textureVertexBufferObj);
 	glBindBuffer(GL_ARRAY_BUFFER, textureVertexBufferObj[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * textureVertices.size(), &textureVertices[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * planeTextureVertices.size(), &planeTextureVertices[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
 
 	std::vector<cyPoint3f> tangents;
 	std::vector<cyPoint3f> bitangents;
 
-	calculateTangents(vertices, textureVertices, tangents, bitangents);
+	calculateTangents(plane_vertices, planeTextureVertices, tangents, bitangents);
 
 	glGenBuffers(1, vertexTangentObj);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexTangentObj[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * tangents.size(), &tangents[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(3);
-	glVertexAttribPointer(3, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
 
 	glGenBuffers(1, vertexBitangentObj);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBitangentObj[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * bitangents.size(), &bitangents[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(4);
-	glVertexAttribPointer(4, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+	glEnableVertexAttribArray(3);
+	glVertexAttribPointer(3, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
 
 	glBindVertexArray(0);
 
 	glGenTextures(3, textureID);
-	loadTextures(textureID, "stone");
+	loadTextures(textureID, "stairs_straight");
 }
 
 void loadCubeTextures(int num) {

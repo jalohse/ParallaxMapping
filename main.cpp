@@ -60,6 +60,8 @@ std::vector<unsigned char> cube_left_img;
 std::vector<unsigned char> cube_right_img;
 std::vector<unsigned char> cube_top_img;
 
+
+cyMatrix4f houseTranslationMatrix = cyMatrix4f::MatrixTrans(cyPoint3f(0, 0, 0));
 std::vector<cyPoint3f> house_vertices;
 std::vector<cyPoint3f> house_locations;
 
@@ -144,18 +146,22 @@ void display() {
 void zoom() {
 	teapot_shaders.Bind();
 	int data = translationMatrix.data[14];
-	cyPoint3f translation = cyPoint3f(0.0f, 0.0f, 1.0f);
-	if (data > -25 || !zoom_in) {
+	cyPoint3f translation = cyPoint3f(0.0f, 0.0f, 0.2f);
+	if (data > -8 || !zoom_in) {
 		zoom_in = false;
 		translation = cyPoint3f(0.0f, 0.0f, -1.0f);
 	}
-	translationMatrix = cyMatrix4f::MatrixTrans(translation) * translationMatrix;
-	cubeTranslationMatrix = cyMatrix4f::MatrixTrans(translation) * cubeTranslationMatrix * totalRotationMatrix;
+	cyMatrix4f translationMat = cyMatrix4f::MatrixTrans(translation);
+	translationMatrix = translationMat * translationMatrix;
+	cubeTranslationMatrix = translationMat * cubeTranslationMatrix;
+	houseTranslationMatrix = translationMat * houseTranslationMatrix;
 	cameraTransformationMatrix = translationMatrix * totalRotationMatrix;
 	teapot_shaders.SetUniform(1, cameraTransformationMatrix);
 	teapot_shaders.SetUniform(3, cameraTransformationMatrix.GetInverse().GetTranspose());
 	cube_shaders.Bind();
 	cube_shaders.SetUniform(1, cubeTranslationMatrix * totalRotationMatrix);
+	house_shaders.Bind();
+	house_shaders.SetUniform(1, houseTranslationMatrix * totalRotationMatrix);
 	glutPostRedisplay();
 }
 
@@ -163,6 +169,8 @@ void rotate() {
 	totalRotationMatrix = cyMatrix4f::MatrixRotationY(0.5) * totalRotationMatrix;
 	cube_shaders.Bind();
 	cube_shaders.SetUniform(1, cubeTranslationMatrix * totalRotationMatrix);
+	house_shaders.Bind();
+	house_shaders.SetUniform(1, houseTranslationMatrix * totalRotationMatrix);
 	glutPostRedisplay();
 }
 
@@ -178,6 +186,10 @@ void moveLight() {
 
 	teapot_shaders.Bind();
 	teapot_shaders.SetUniform(4, lightPos);
+	cube_shaders.Bind();
+	cube_shaders.SetUniform(4, lightPos);
+	house_shaders.Bind();
+	house_shaders.SetUniform(4, lightPos);
 	glutPostRedisplay();
 }
 
@@ -584,8 +596,6 @@ void createHouses()
 	box.LoadFromFileObj("house_bottom.obj");
 	box.ComputeBoundingBox();
 	box.ComputeNormals();
-
-	cyMatrix4f houseTranslationMatrix = cyMatrix4f::MatrixTrans(cyPoint3f(0, 0, 0));
 	
 	house_shaders = cy::GLSLProgram();
 	house_shaders.BuildFiles("house_vertex_shader.glsl", "house_fragment_shader.glsl");

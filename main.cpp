@@ -65,7 +65,7 @@ std::vector<cyPoint3f> house_locations;
 
 GLuint textureID[3];
 GLuint cubeTexId[3];
-GLuint houseTexId[3];
+GLuint house_tex_id[3];
 
 unsigned diffWidth, diffHeight, specHeight, specWidth;
 unsigned cubeWidth, cubeHeight;
@@ -125,13 +125,13 @@ void display() {
 
 	house_shaders.Bind();
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, houseTexId[0]);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, house_tex_id[0]);
 	glUniform1i(glGetUniformLocation(house_shaders.GetID(), "diffuseMap"), 0);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, houseTexId[1]);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, house_tex_id[1]);
 	glUniform1i(glGetUniformLocation(house_shaders.GetID(), "normalMap"), 1);
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, houseTexId[2]);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, house_tex_id[2]);
 	glUniform1i(glGetUniformLocation(house_shaders.GetID(), "depthMap"), 2);
 	glBindVertexArray(houseVertexArrayObj);
 	glDrawArraysInstanced(GL_TRIANGLES, 0, house_vertices.size(), house_locations.size());
@@ -542,6 +542,42 @@ void createSceneBox()
 	loadCubeTextures(2);
 }
 
+void loadHouseTextures(int num) {
+	std::string img_name = "wall_window";
+	if(num == 0)
+	{
+		img_name += color_suffix;
+	} else if(num == 1)
+	{
+		img_name += normal_suffix;
+	} else if (num == 2)
+	{
+		img_name += disp_suffix;
+	}
+	std::vector<unsigned char> house_front_img = generateImage(img_name, cubeWidth, cubeHeight);
+	std::vector<unsigned char> house_back_img = house_front_img;
+	std::vector<unsigned char> house_left_img = house_front_img;
+	std::vector<unsigned char> house_right_img = house_front_img;
+	std::vector<unsigned char> house_top_img = house_front_img;
+	std::vector<unsigned char> house = house_front_img;
+
+
+	glBindTexture(GL_TEXTURE_CUBE_MAP, house_tex_id[num]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &house_left_img[0]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &house_right_img[0]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &house_top_img[0]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &house[0]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &house_back_img[0]);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, 4, cubeWidth, cubeHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, &house_front_img[0]);
+
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+}
+
 void createHouses()
 {
 	cyTriMesh box = cyTriMesh();
@@ -566,8 +602,7 @@ void createHouses()
 	house_shaders.SetUniform(5, cameraPos);
 
 
-	house_locations = { cyPoint3f(-6, -6, -3) , cyPoint3f(8, -6, -3),cyPoint3f(-5, -8, -1), cyPoint3f(5, -7, 3) 
-	};
+	house_locations = { cyPoint3f(-6, -6, -3) , cyPoint3f(8, -6, -3),cyPoint3f(-5, -8, -1), cyPoint3f(5, -7, 3) };
 
 	for (GLuint i = 0; i < house_locations.size(); i++)
 	{
@@ -586,7 +621,6 @@ void createHouses()
 	GLuint vertexBufferObj[2];
 	GLuint vertexTangentObj[1];
 	GLuint vertexBitangentObj[1];
-	GLuint instanceVertexBufferObj[1];
 
 	glGenVertexArrays(1, &houseVertexArrayObj);
 	glBindVertexArray(houseVertexArrayObj);
@@ -597,6 +631,11 @@ void createHouses()
 	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * house_vertices.size(), &house_vertices[0], GL_STATIC_DRAW);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * house_normals.size(), &house_normals[0], GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, 0, sizeof(cyPoint3f), NULL);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj[1]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(cyPoint3f) * house_normals.size(), &house_normals[0], GL_STATIC_DRAW);
@@ -622,8 +661,11 @@ void createHouses()
 
 	glBindVertexArray(0);
 
-	glGenTextures(3, houseTexId);
-	loadTextures(houseTexId, "stone");
+	glGenTextures(3, house_tex_id);
+	loadHouseTextures(0);
+	loadHouseTextures(1);
+	loadHouseTextures(2);
+
 }
 
 int main(int argc, char* argv[])

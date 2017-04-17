@@ -5,7 +5,7 @@ layout(location = 1) in vec3 normal;
 layout(location = 2) in vec3 tangent;
 layout(location = 3) in vec3 bitangent;
 
-out vec2 texCoor;
+out vec3 texCoor;
 out vec3 tangentLightPos;
 out vec3 tangentViewPos;
 out vec3 tangentFragPos;
@@ -20,17 +20,17 @@ uniform vec3 offsets[4];
 
 void main() {
 	vec3 offset = offsets[gl_InstanceID];
-	vec3 pos = pos + offset;
+	vec3 pos_offset = pos + offset;
 
-	gl_Position = perspective * view * cameraTransformation * vec4(pos, 1);
+	gl_Position = perspective * view * cameraTransformation * vec4(pos_offset, 1);
 
 	vec3 tangent = normalize(vec3(cameraTransformation * vec4(tangent, 0.0)));
-	vec3 normal = normalize(vec3(cameraTransformation * vec4(normal, 0.0)));
+	vec3 normal = normalize(vec3(cameraTransformation * vec4(-normal, 0.0)));
 	vec3 bitangent = normalize(vec3(cameraTransformation * vec4(bitangent, 0.0)));
 	mat3 tangentBitangentNormal = transpose(mat3(tangent, bitangent, normal));
 	tangentLightPos = tangentBitangentNormal * lightPos;
 	tangentViewPos = tangentBitangentNormal * cameraPos;
 	tangentFragPos = tangentBitangentNormal * vec3(cameraTransformation * vec4(pos, 0.0));
 
-	texCoor = pos.xy;
+	texCoor = pos;
 }

@@ -86,12 +86,12 @@ std::vector<cyPoint3f> plane_vertices = {
 };
 
 std::vector<cyPoint3f> planeTextureVertices = {
-	cyPoint3f(0, 0, 0),
-	cyPoint3f(1, 0, 0),
-	cyPoint3f(0, 1, 0),
+	cyPoint3f(0.8, 0.8, 0),
 	cyPoint3f(0, 1, 0),
 	cyPoint3f(1, 0, 0),
-	cyPoint3f(1, 1, 0)
+	cyPoint3f(1, 0, 0),
+	cyPoint3f(0, 1, 0),
+	cyPoint3f(0, 0, 0)
 };
 
 

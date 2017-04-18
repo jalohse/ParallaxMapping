@@ -79,10 +79,10 @@ cyMatrix4f lightView = cyMatrix4f::MatrixView(lightPos, cyPoint3f(0,3,0), upVec)
 std::vector<cyPoint3f> plane_vertices = {
 	cyPoint3f(-6.0f, -10.0f, -12.0f),
 	cyPoint3f(6.0f, -10.0f, -12.0f),
-	cyPoint3f(-2.0f, -3.0f, -15.0f),
-	cyPoint3f(-2.0f, -3.0f, -15.0f),
+	cyPoint3f(-2.0f, -3.0f, -13.0f),
+	cyPoint3f(-2.0f, -3.0f, -13.0f),
 	cyPoint3f(6.0f, -10.0f, -12.0f),
-	cyPoint3f(2.0f, -3.0f, -15.0f)
+	cyPoint3f(2.0f, -3.0f, -13.0f)
 };
 
 std::vector<cyPoint3f> planeTextureVertices = {
@@ -629,7 +629,10 @@ void createHouses()
 	house_shaders.SetUniform(5, cameraPos);
 
 
-	house_locations = { cyPoint3f(-8, -6, -3) , cyPoint3f(8, -6, -3),cyPoint3f(-8, -8, 0), cyPoint3f(8, -7, 3) };
+	house_locations = { cyPoint3f(-8, -7, -3) , cyPoint3f(8, -7, -3),cyPoint3f(-8, -9, 2), cyPoint3f(8, -8, 2),
+		cyPoint3f(-8, -7, 7) , cyPoint3f(8, -7, 7), cyPoint3f(-8, -8, -8) , cyPoint3f(8, -8, -8),  cyPoint3f(0, -6, -15),
+		cyPoint3f(6, -8, -15), cyPoint3f(-6, -8, -15), cyPoint3f(4, -8, 15), cyPoint3f(-3, -8, 15)
+	};
 
 	for (GLuint i = 0; i < house_locations.size(); i++)
 	{
@@ -711,7 +714,7 @@ void createRoofs()
 	roof_shaders.RegisterUniform(5, "cameraPos");
 	roof_shaders.SetUniform(5, cameraPos);
 
-	roof_locations = { cyPoint3f(-8, -6, -3) , cyPoint3f(8, -6, -3),cyPoint3f(-8, -8, 0), cyPoint3f(8, -7, 3) };
+	roof_locations = house_locations;
 
 	for (GLuint i = 0; i < roof_locations.size(); i++)
 	{

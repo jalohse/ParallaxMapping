@@ -16,7 +16,7 @@ uniform mat4 view;
 uniform vec3 lightPos;
 uniform vec3 cameraPos;
 
-uniform vec3 offsets[4];
+uniform vec3 offsets[13];
 
 void main() {
 	vec3 offset = offsets[gl_InstanceID];

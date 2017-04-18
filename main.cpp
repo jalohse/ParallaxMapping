@@ -9,12 +9,11 @@
 #include "lodepng.h"
 
 
-#define width 300
+#define width 600
 #define far_plane 500.0f
 #define inital_z -70.0f
 #define fov_degrees 90.0f
 #define flip_degree 135.1f
-#define y_trans -7
 
 #define cube_front "front.png"
 #define cube_back "back.png"
@@ -27,9 +26,9 @@
 #define spec_suffix "_SPEC.png"
 
 cyPoint3f lightPos = cyPoint3f(12, -5,9);
-cyPoint3f cameraPos = cyPoint3f(0, -3, 5);
+cyPoint3f cameraPos = cyPoint3f(0, -6, 5);
 cyPoint3f upVec = cyPoint3f(0, 1, 0);
-cyPoint3f lookAt = cyPoint3f(0, -3, 0);
+cyPoint3f lookAt = cyPoint3f(0, -6, 0);
 
 GLuint vertexArrayObj;
 GLuint cubeVertexArrayObj;
@@ -42,13 +41,10 @@ cy::GLSLProgram house_shaders;
 cy::GLSLProgram roof_shaders;
 
 cy::Matrix4<float> cameraTransformationMatrix;
-cy::Matrix4<float> lightCameraTransformationMatrix;
 cy::Matrix4<float> perspectiveMatrix;
 cy::Matrix4<float> totalRotationMatrix;
 cy::Matrix4<float> translationMatrix;
 cy::Matrix4<float> cubeTranslationMatrix;
-cy::Matrix4<float> lightTransformationMatrix;
-cy::Matrix4<float> lightRotationMatrix;
 
 int selected;
 int selectedKey;
@@ -79,8 +75,6 @@ unsigned cubeWidth, cubeHeight;
 
 cyMatrix4f view = cyMatrix4f::MatrixView(cameraPos, lookAt, upVec);
 cyMatrix4f lightView = cyMatrix4f::MatrixView(lightPos, cyPoint3f(0,3,0), upVec);
-bool zoom_in = true;
-int movement = 0;
 
 std::vector<cyPoint3f> plane_vertices = {
 	cyPoint3f(-6.0f, -10.0f, -12.0f),
@@ -110,8 +104,6 @@ void setInitialRotationAndTranslation() {
 
 	totalRotationMatrix = rotationX * rotationZ;
 	cameraTransformationMatrix = translationMatrix * totalRotationMatrix;
-
-	lightRotationMatrix = cyMatrix4f::MatrixRotationX(0);
 }
 
 void display() {
@@ -222,11 +214,6 @@ void moveLight(int button) {
 		lightPos = cyPoint3f(lightPos.x - 1, lightPos.y, lightPos.z);
 	}
 
-	std::cout << lightPos.x;
-	std::cout << lightPos.y;
-	std::cout << lightPos.z << std::endl;
-
-
 	stairs_shaders.Bind();
 	stairs_shaders.SetUniform(4, lightPos);
 	cube_shaders.Bind();
@@ -240,12 +227,7 @@ void moveLight(int button) {
 
 void onClick(int button, int state, int x, int y) {
 
-	int mod = glutGetModifiers();
-	if (mod == GLUT_ACTIVE_CTRL) {
-		selectedKey = mod;
-		moveLight(button);
-	}
-	else if (button == GLUT_RIGHT_BUTTON) {
+	 if (button == GLUT_RIGHT_BUTTON) {
 		if (state == GLUT_DOWN) {
 			selected = GLUT_RIGHT_BUTTON;
 			zoom();
@@ -265,27 +247,25 @@ void onClick(int button, int state, int x, int y) {
 	}
 }
 
-//void move(int x, int y) {
-//	if (selectedKey == GLUT_ACTIVE_CTRL) {
-//		moveLight();
-//	}
-//	else if (selected == GLUT_RIGHT_BUTTON) {
-//		zoom();
-//	}
-//	else if (selected == GLUT_LEFT_BUTTON) {
-//		rotate();
-//	}
-//}
+void move(int x, int y) {
+	if (selected == GLUT_RIGHT_BUTTON) {
+		zoom();
+	}
+	else if (selected == GLUT_LEFT_BUTTON) {
+		rotate();
+	}
+}
 
 
-void reset(int key, int x, int y) {
+void onKeyPress(int key, int x, int y) {
+	int mod = glutGetModifiers();
 	if (key == GLUT_KEY_F6) {
 		setInitialRotationAndTranslation();
 		stairs_shaders.Bind();
 		stairs_shaders.SetUniform(1, cameraTransformationMatrix);
 		stairs_shaders.SetUniform(3, cameraTransformationMatrix.GetInverse().GetTranspose());
 		glutPostRedisplay();
-	} else
+	} else if (mod == GLUT_ACTIVE_CTRL) 
 	{
 		moveLight(key);
 	}
@@ -391,18 +371,7 @@ void populateVerticesNormalsTextures(cyTriMesh mesh, std::vector<cyPoint3f> &ver
 }
 
 
-void createFountain() {
-//	cyTriMesh mesh = cyTriMesh();
-//	mesh.LoadFromFileObj("fountain_base.obj");
-//	mesh.ComputeBoundingBox();
-//	mesh.ComputeNormals();
-//
-//	std::vector<cyPoint3f> normals;
-//	std::vector<cyPoint3f> textureVertices;
-//
-//	populateVerticesNormalsTextures(mesh, plane_vertices, normals, textureVertices);
-	setInitialRotationAndTranslation();
-
+void createStairs() {
 	stairs_shaders = cy::GLSLProgram();
 	stairs_shaders.BuildFiles("plane_vertex_shader.glsl", "plane_fragment_shader.glsl");
 	stairs_shaders.Bind();
@@ -823,7 +792,9 @@ int main(int argc, char* argv[])
 
 	float fov = fov_degrees * (M_PI / 180.0f);
 	perspectiveMatrix = cyMatrix4f::MatrixPerspective(fov, 1.0f, 0.1f, far_plane);
-	createFountain();
+	setInitialRotationAndTranslation();
+
+	createStairs();
 	createHouses();
 	createRoofs();
 	createSceneBox();
@@ -833,8 +804,8 @@ int main(int argc, char* argv[])
 
 	glutDisplayFunc(display);
 	glutMouseFunc(onClick);
-	//glutMotionFunc(move);
-	glutSpecialFunc(reset);
+	glutMotionFunc(move);
+	glutSpecialFunc(onKeyPress);
 
 	glutMainLoop();
 

@@ -170,8 +170,20 @@ void display() {
 }
 
 
-void zoom() {
-	cyPoint3f translation = cyPoint3f(0.0f, 0.0f, -0.2f);
+void zoom(int key) {
+	cyPoint3f translation;
+	if (key == GLUT_KEY_UP) {
+		translation = cyPoint3f(0, 0, 0.2f);
+	}
+	else if (key == GLUT_KEY_DOWN) {
+		translation = cyPoint3f(0, 0, -0.2f);
+	}
+	else if (key == GLUT_KEY_LEFT) {
+		translation = cyPoint3f(0.2f, 0, 0);
+	}
+	else if (key == GLUT_KEY_RIGHT) {
+		translation = cyPoint3f(-0.2f, 0, 0);
+	}
 	cyMatrix4f translationMat = cyMatrix4f::MatrixTrans(translation);
 	translationMatrix = translationMat * translationMatrix;
 	cubeTranslationMatrix = translationMat * cubeTranslationMatrix;
@@ -189,7 +201,7 @@ void zoom() {
 }
 
 void rotate() {
-	totalRotationMatrix = cyMatrix4f::MatrixRotationY(0.5) * totalRotationMatrix;
+	totalRotationMatrix = cyMatrix4f::MatrixRotationY(0.1) * totalRotationMatrix;
 	cube_shaders.Bind();
 	cube_shaders.SetUniform(1, cubeTranslationMatrix * totalRotationMatrix);
 	house_shaders.Bind();
@@ -226,17 +238,7 @@ void moveLight(int button) {
 }
 
 void onClick(int button, int state, int x, int y) {
-
-	 if (button == GLUT_RIGHT_BUTTON) {
-		if (state == GLUT_DOWN) {
-			selected = GLUT_RIGHT_BUTTON;
-			zoom();
-		}
-		else {
-			selected = NULL;
-		}
-	}
-	else if (button == GLUT_LEFT_BUTTON) {
+	if (button == GLUT_LEFT_BUTTON) {
 		if (state == GLUT_DOWN) {
 			selected = GLUT_LEFT_BUTTON;
 			rotate();
@@ -248,10 +250,7 @@ void onClick(int button, int state, int x, int y) {
 }
 
 void move(int x, int y) {
-	if (selected == GLUT_RIGHT_BUTTON) {
-		zoom();
-	}
-	else if (selected == GLUT_LEFT_BUTTON) {
+	if (selected == GLUT_LEFT_BUTTON) {
 		rotate();
 	}
 }
@@ -268,6 +267,9 @@ void onKeyPress(int key, int x, int y) {
 	} else if (mod == GLUT_ACTIVE_CTRL) 
 	{
 		moveLight(key);
+	} else
+	{
+		zoom(key);
 	}
 }
 

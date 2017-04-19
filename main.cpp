@@ -629,9 +629,9 @@ void createHouses()
 	house_shaders.SetUniform(5, cameraPos);
 
 
-	house_locations = { cyPoint3f(-8, -7, -3) , cyPoint3f(8, -7, -3),cyPoint3f(-8, -9, 2), cyPoint3f(8, -8, 2),
-		cyPoint3f(-8, -7, 7) , cyPoint3f(8, -7, 7), cyPoint3f(-8, -8, -8) , cyPoint3f(8, -8, -8),  cyPoint3f(0, -6, -15),
-		cyPoint3f(6, -8, -15), cyPoint3f(-6, -8, -15), cyPoint3f(4, -8, 15), cyPoint3f(-3, -8, 15)
+	house_locations = { cyPoint3f(-8, -9, -3) , cyPoint3f(8, -9, -3),cyPoint3f(-8, -11, 2), cyPoint3f(8, -10, 2),
+		cyPoint3f(-8, -9, 7) , cyPoint3f(8, -9, 7), cyPoint3f(-8, -10, -8) , cyPoint3f(8, -10, -8),  cyPoint3f(0, -6, -15),
+		cyPoint3f(6, -10, -15), cyPoint3f(-6, -10, -15), cyPoint3f(4, -10, 15), cyPoint3f(-3, -10, 15)
 	};
 
 	for (GLuint i = 0; i < house_locations.size(); i++)

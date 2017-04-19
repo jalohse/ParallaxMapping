@@ -11,7 +11,7 @@ in vec3 tangentLightPos;
 in vec3 tangentViewPos;
 in vec3 tangentFragPos;
 
-float height_scale = 0.4;
+float height_scale = 0.1;
 
 vec4 ambientColor = vec4(0.2, 0.2, 0.2, 1);
 

@@ -9,7 +9,7 @@
 #include "lodepng.h"
 
 
-#define width 600
+#define width 800
 #define far_plane 500.0f
 #define inital_z -70.0f
 #define fov_degrees 90.0f
@@ -786,7 +786,7 @@ int main(int argc, char* argv[])
 	glutInitContextFlags(GLUT_DEBUG);
 	glutInitWindowSize(width, width);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
-	glutCreateWindow("Shadow Mapping");
+	glutCreateWindow("Parallax Mapping");
 	cyGL::PrintVersion();
 	GLenum res = glewInit();
 	if (res != GLEW_OK)
